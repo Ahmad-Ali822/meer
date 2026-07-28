@@ -1,9 +1,4 @@
-import {
-  PLACEHOLDER_INVOICE_NUMBER,
-  type InvoiceFormState,
-} from "../types/invoice";
-
-const PLACEHOLDER_USB_ROOT = "E:\\Meer Ilyas Invoices";
+import type { InvoiceFormState } from "../types/invoice";
 
 export function sanitizeCustomerNameForFilename(customerName: string): string {
   return customerName
@@ -14,27 +9,34 @@ export function sanitizeCustomerNameForFilename(customerName: string): string {
     .replace(/^-|-$/g, "");
 }
 
-export function buildPlaceholderFolderPath(date = new Date()): string {
+export function buildInvoicePdfFilename(
+  invoiceNumber: string,
+  customerName: string,
+): string {
+  const customerSlug =
+    sanitizeCustomerNameForFilename(customerName) || "Customer";
+
+  return `${invoiceNumber}-${customerSlug}.pdf`;
+}
+
+export function buildInvoiceFolderPath(
+  invoiceRoot: string,
+  date = new Date(),
+): string {
   const year = date.getFullYear();
   const month = date.toLocaleDateString("en-GB", { month: "long" });
 
-  return `${PLACEHOLDER_USB_ROOT}\\${year}\\${month}`;
+  return `${invoiceRoot}\\${year}\\${month}`;
 }
 
-export function buildPlaceholderPdfPath(
-  form: InvoiceFormState,
+export function buildInvoicePdfPath(
+  invoiceRoot: string,
+  invoiceNumber: string,
+  form: Pick<InvoiceFormState, "customerName">,
   date = new Date(),
 ): string {
-  const folderPath = buildPlaceholderFolderPath(date);
-  const customerSlug = sanitizeCustomerNameForFilename(form.customerName) || "Customer";
+  const folderPath = buildInvoiceFolderPath(invoiceRoot, date);
+  const fileName = buildInvoicePdfFilename(invoiceNumber, form.customerName);
 
-  return `${folderPath}\\${PLACEHOLDER_INVOICE_NUMBER}-${customerSlug}.pdf`;
-}
-
-export function buildPlaceholderPdfFilename(
-  form: InvoiceFormState,
-): string {
-  const customerSlug = sanitizeCustomerNameForFilename(form.customerName) || "Customer";
-
-  return `${PLACEHOLDER_INVOICE_NUMBER}-${customerSlug}.pdf`;
+  return `${folderPath}\\${fileName}`;
 }

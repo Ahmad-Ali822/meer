@@ -5,15 +5,15 @@ import {
   InvoicePreviewHeader,
 } from "../components/invoice/InvoicePreviewChrome";
 import type { InvoiceCalculationResult, InvoiceFormState } from "../types/invoice";
-import { PLACEHOLDER_INVOICE_NUMBER } from "../types/invoice";
-import {
-  buildPlaceholderFolderPath,
-  buildPlaceholderPdfFilename,
-} from "../utils/invoicePaths";
+import type { InvoiceSavePlan } from "../types/invoiceNumbering";
 
 interface InvoicePreviewScreenProps {
   form: InvoiceFormState;
   totals: InvoiceCalculationResult;
+  invoiceNumber: string | null;
+  savePlan: InvoiceSavePlan | null;
+  isSaving: boolean;
+  saveErrorMessage: string | null;
   onBackToEdit: () => void;
   onGenerateSave: () => void;
 }
@@ -21,19 +21,29 @@ interface InvoicePreviewScreenProps {
 export function InvoicePreviewScreen({
   form,
   totals,
+  invoiceNumber,
+  savePlan,
+  isSaving,
+  saveErrorMessage,
   onBackToEdit,
   onGenerateSave,
 }: InvoicePreviewScreenProps) {
-  const folderPath = buildPlaceholderFolderPath();
-  const fileName = buildPlaceholderPdfFilename(form);
+  const folderPath = savePlan?.folderPath ?? "No USB folder selected";
+  const fileName = savePlan?.fileName ?? "Invoice filename unavailable";
+  const previewInvoiceNumber = invoiceNumber ?? "Unavailable";
+  const saveBlocked = !savePlan || savePlan.fileExists;
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[#e8eaf3]">
-      <InvoicePreviewHeader invoiceNumber={PLACEHOLDER_INVOICE_NUMBER} />
+      <InvoicePreviewHeader invoiceNumber={previewInvoiceNumber} />
 
       <main className="relative min-h-0 flex-1 overflow-auto px-6 py-8">
         <div className="mx-auto flex max-w-4xl justify-center gap-4">
-          <InvoiceDocument form={form} totals={totals} />
+          <InvoiceDocument
+            form={form}
+            totals={totals}
+            invoiceNumber={previewInvoiceNumber}
+          />
 
           <div className="hidden shrink-0 flex-col gap-2 lg:flex">
             <PreviewToolButton label="Zoom in" disabled>
@@ -52,9 +62,23 @@ export function InvoicePreviewScreen({
       <InvoicePreviewFooter
         folderPath={folderPath}
         fileName={fileName}
+        saveBlocked={saveBlocked || isSaving}
+        isSaving={isSaving}
         onBackToEdit={onBackToEdit}
         onGenerateSave={onGenerateSave}
       />
+
+      {saveBlocked ? (
+        <p className="px-6 pb-3 text-right text-xs text-brand-error">
+          Select an available USB folder before saving this invoice.
+        </p>
+      ) : null}
+
+      {saveErrorMessage ? (
+        <p className="px-6 pb-3 text-right text-xs text-brand-error">
+          {saveErrorMessage}
+        </p>
+      ) : null}
     </div>
   );
 }

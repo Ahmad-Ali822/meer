@@ -4,6 +4,7 @@ import { AppShell } from "../components/layout/AppShell";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { PasswordToggle } from "../components/ui/PasswordToggle";
+import { verifyLogin } from "../services/authService";
 import { APP_NAME } from "../theme/brand";
 
 interface LoginScreenProps {
@@ -15,8 +16,9 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showError, setShowError] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const trimmedUsername = username.trim();
@@ -27,8 +29,21 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       return;
     }
 
-    setShowError(false);
-    onLoginSuccess();
+    setIsSubmitting(true);
+
+    try {
+      const success = await verifyLogin(trimmedUsername, trimmedPassword);
+
+      if (success) {
+        setShowError(false);
+        onLoginSuccess();
+        return;
+      }
+
+      setShowError(true);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -91,7 +106,12 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               ) : null}
             </div>
 
-            <Button type="submit" fullWidth className="mt-2 py-3">
+            <Button
+              type="submit"
+              fullWidth
+              className="mt-2 py-3"
+              disabled={isSubmitting}
+            >
               Login
               <LoginIcon />
             </Button>

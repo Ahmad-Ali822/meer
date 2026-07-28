@@ -1,5 +1,4 @@
 import type { InvoiceCalculationResult, InvoiceFormState } from "../../types/invoice";
-import { PLACEHOLDER_INVOICE_NUMBER } from "../../types/invoice";
 import { APP_SUBTITLE } from "../../theme/brand";
 import {
   formatDiscountLabel,
@@ -13,12 +12,14 @@ import { parseRupeesInput } from "../../utils/money";
 interface InvoiceDocumentProps {
   form: InvoiceFormState;
   totals: InvoiceCalculationResult;
+  invoiceNumber: string;
   invoiceDate?: Date;
 }
 
 export function InvoiceDocument({
   form,
   totals,
+  invoiceNumber,
   invoiceDate = new Date(),
 }: InvoiceDocumentProps) {
   const discountLabel = formatDiscountLabel(form.discountType, form.discountValue);
@@ -43,7 +44,7 @@ export function InvoiceDocument({
         <div className="text-right">
           <p className="text-base font-bold text-brand-navy">INVOICE</p>
           <p className="mt-1 text-xs font-semibold text-brand-navy">
-            # {PLACEHOLDER_INVOICE_NUMBER}
+            # {invoiceNumber}
           </p>
           <p className="mt-1 text-[10px] text-brand-muted">
             Date: {formatInvoiceDate(invoiceDate)}

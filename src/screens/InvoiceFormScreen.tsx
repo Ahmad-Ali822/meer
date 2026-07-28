@@ -8,7 +8,6 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import type { useInvoiceForm } from "../hooks/useInvoiceForm";
 import { APP_VERSION } from "../theme/brand";
-import { PLACEHOLDER_INVOICE_NUMBER } from "../types/invoice";
 import { formatInvoiceDate } from "../utils/invoiceDisplay";
 import { hasInvoiceFormErrors } from "../utils/invoiceValidation";
 
@@ -16,12 +15,16 @@ type InvoiceFormController = ReturnType<typeof useInvoiceForm>;
 
 interface InvoiceFormScreenProps {
   invoiceForm: InvoiceFormController;
+  invoiceNumber: string | null;
+  invoiceNumberLoading: boolean;
   onHome: () => void;
   onPreview: () => void;
 }
 
 export function InvoiceFormScreen({
   invoiceForm,
+  invoiceNumber,
+  invoiceNumberLoading,
   onHome,
   onPreview,
 }: InvoiceFormScreenProps) {
@@ -47,6 +50,9 @@ export function InvoiceFormScreen({
 
   const invoiceDate = formatInvoiceDate(new Date());
   const previewBlocked = errors !== null && hasInvoiceFormErrors(errors);
+  const invoiceNumberLabel = invoiceNumberLoading
+    ? "Loading..."
+    : invoiceNumber ?? "Unavailable";
 
   function handleHomeRequest() {
     if (isDirty) {
@@ -87,7 +93,7 @@ export function InvoiceFormScreen({
                   INVOICE #
                 </p>
                 <p className="text-sm font-bold text-brand-navy">
-                  {PLACEHOLDER_INVOICE_NUMBER}
+                  {invoiceNumberLabel}
                 </p>
               </div>
               <div>

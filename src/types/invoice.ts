@@ -60,6 +60,3 @@ export interface SavedInvoiceSummary {
   filePath: string;
   nextInvoiceNumber: string;
 }
-
-export const PLACEHOLDER_INVOICE_NUMBER = "MI-2026-0001";
-export const PLACEHOLDER_NEXT_INVOICE_NUMBER = "MI-2026-0002";

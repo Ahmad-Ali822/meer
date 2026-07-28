@@ -21,6 +21,8 @@ export function InvoicePreviewHeader({
 interface InvoicePreviewFooterProps {
   folderPath: string;
   fileName: string;
+  saveBlocked?: boolean;
+  isSaving?: boolean;
   onBackToEdit: () => void;
   onGenerateSave: () => void;
 }
@@ -28,6 +30,8 @@ interface InvoicePreviewFooterProps {
 export function InvoicePreviewFooter({
   folderPath,
   fileName,
+  saveBlocked = false,
+  isSaving = false,
   onBackToEdit,
   onGenerateSave,
 }: InvoicePreviewFooterProps) {
@@ -49,9 +53,9 @@ export function InvoicePreviewFooter({
           <EditIcon />
           Back to Edit
         </Button>
-        <Button onClick={onGenerateSave}>
+        <Button onClick={onGenerateSave} disabled={saveBlocked}>
           <SaveIcon />
-          Generate &amp; Save PDF
+          {isSaving ? "Saving..." : "Generate & Save PDF"}
         </Button>
       </div>
     </footer>

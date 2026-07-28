@@ -1,14 +1,44 @@
 import logo from "../assets/Logo.jpeg";
+import { UsbUnavailableDialog } from "../components/invoice/UsbUnavailableDialog";
 import { AppShell } from "../components/layout/AppShell";
 import { Button } from "../components/ui/Button";
+import type { useInvoiceFolder } from "../hooks/useInvoiceFolder";
 import { APP_NAME } from "../theme/brand";
 
+type InvoiceFolderController = ReturnType<typeof useInvoiceFolder>;
+
 interface HomeScreenProps {
+  invoiceFolder: InvoiceFolderController;
   onLogout: () => void;
   onCreateInvoice: () => void;
 }
 
-export function HomeScreen({ onLogout, onCreateInvoice }: HomeScreenProps) {
+export function HomeScreen({
+  invoiceFolder,
+  onLogout,
+  onCreateInvoice,
+}: HomeScreenProps) {
+  const {
+    status,
+    isLoading,
+    showUsbWarning,
+    selectFolder,
+    tryAgain,
+    openFolder,
+    selectAnotherFolder,
+    dismissUsbWarning,
+  } = invoiceFolder;
+
+  const hasSelectedFolder = Boolean(status.path);
+  const folderLabel = status.path ?? "No USB folder selected";
+  const folderStatusText = isLoading
+    ? "Checking folder..."
+    : hasSelectedFolder
+      ? status.isAvailable
+        ? "Available"
+        : "Unavailable"
+      : null;
+
   return (
     <AppShell footerVariant="home" showHeader onLogout={onLogout}>
       <div className="flex flex-1 items-center justify-center px-6 py-8">
@@ -44,30 +74,66 @@ export function HomeScreen({ onLogout, onCreateInvoice }: HomeScreenProps) {
             <div className="flex items-center justify-between gap-4">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white text-brand-navy">
-                  <UsbIcon />
+                  <UsbIcon unavailable={hasSelectedFolder && !status.isAvailable} />
                 </span>
                 <div className="min-w-0 text-left">
                   <p className="text-[10px] font-semibold tracking-wider text-brand-muted">
                     INVOICE FOLDER
                   </p>
-                  <p className="truncate text-sm text-brand-text">
-                    No USB folder selected
+                  <p
+                    className={`truncate text-sm ${
+                      hasSelectedFolder && !status.isAvailable
+                        ? "text-brand-error"
+                        : "text-brand-text"
+                    }`}
+                    title={status.path ?? undefined}
+                  >
+                    {folderLabel}
                   </p>
+                  {folderStatusText ? (
+                    <p
+                      className={`text-xs ${
+                        hasSelectedFolder && !status.isAvailable
+                          ? "text-brand-error"
+                          : "text-brand-success"
+                      }`}
+                    >
+                      {folderStatusText}
+                    </p>
+                  ) : null}
                 </div>
               </div>
-              <Button variant="secondary" className="shrink-0" disabled>
-                Select USB Folder
+              <Button
+                variant="secondary"
+                className="shrink-0"
+                disabled={isLoading}
+                onClick={() => void selectFolder()}
+              >
+                {hasSelectedFolder ? "Change USB Folder" : "Select USB Folder"}
               </Button>
             </div>
           </div>
 
           <div className="mt-6 border-t border-brand-border pt-4">
-            <Button variant="secondary" fullWidth disabled>
+            <Button
+              variant="secondary"
+              fullWidth
+              disabled={!hasSelectedFolder || isLoading}
+              onClick={() => void openFolder()}
+            >
               Open Folder
             </Button>
           </div>
         </div>
       </div>
+
+      <UsbUnavailableDialog
+        open={showUsbWarning}
+        folderPath={status.path}
+        onTryAgain={() => void tryAgain()}
+        onSelectAnother={() => void selectAnotherFolder()}
+        onClose={dismissUsbWarning}
+      />
     </AppShell>
   );
 }
@@ -90,7 +156,7 @@ function PlusIcon() {
   );
 }
 
-function UsbIcon() {
+function UsbIcon({ unavailable }: { unavailable: boolean }) {
   return (
     <svg
       width="16"
@@ -101,6 +167,7 @@ function UsbIcon() {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
+      className={unavailable ? "text-brand-error" : undefined}
       aria-hidden="true"
     >
       <circle cx="10" cy="7" r="1" />

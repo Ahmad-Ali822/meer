@@ -1,3 +1,4 @@
+import { openPath } from "@tauri-apps/plugin-opener";
 import { Button } from "../components/ui/Button";
 import type { SavedInvoiceSummary } from "../types/invoice";
 import { APP_NAME, APP_VERSION } from "../theme/brand";
@@ -69,11 +70,17 @@ export function InvoiceSavedScreen({
             </Button>
 
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="secondary" disabled>
+              <Button
+                variant="secondary"
+                onClick={() => void openPath(summary.filePath)}
+              >
                 <PdfIcon />
                 Open PDF
               </Button>
-              <Button variant="secondary" disabled>
+              <Button
+                variant="secondary"
+                onClick={() => void openPath(summary.folderPath)}
+              >
                 <FolderIcon />
                 Open Folder
               </Button>
