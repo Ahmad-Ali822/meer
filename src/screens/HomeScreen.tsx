@@ -1,0 +1,113 @@
+import logo from "../assets/Logo.jpeg";
+import { AppShell } from "../components/layout/AppShell";
+import { Button } from "../components/ui/Button";
+import { APP_NAME } from "../theme/brand";
+
+interface HomeScreenProps {
+  onLogout: () => void;
+  onCreateInvoice: () => void;
+}
+
+export function HomeScreen({ onLogout, onCreateInvoice }: HomeScreenProps) {
+  return (
+    <AppShell footerVariant="home" showHeader onLogout={onLogout}>
+      <div className="flex flex-1 items-center justify-center px-6 py-8">
+        <div className="w-full max-w-2xl rounded-xl border border-brand-border/70 bg-white p-8 shadow-sm">
+          <div className="mb-6 flex justify-center">
+            <img
+              src={logo}
+              alt="Meer Ilyas logo"
+              className="h-auto w-28 max-w-full object-contain"
+            />
+          </div>
+
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-brand-text">
+              Welcome to {APP_NAME}
+            </h1>
+            <p className="mx-auto mt-2 max-w-md text-sm text-brand-muted">
+              Create a customer invoice and save it as a PDF to your USB drive.
+            </p>
+          </div>
+
+          <div className="mt-8 flex justify-center">
+            <Button
+              className="px-6 py-3 text-base"
+              onClick={onCreateInvoice}
+            >
+              <PlusIcon />
+              Generate New Invoice
+            </Button>
+          </div>
+
+          <div className="mt-6 rounded-lg border border-brand-border bg-brand-bg/60 px-4 py-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white text-brand-navy">
+                  <UsbIcon />
+                </span>
+                <div className="min-w-0 text-left">
+                  <p className="text-[10px] font-semibold tracking-wider text-brand-muted">
+                    INVOICE FOLDER
+                  </p>
+                  <p className="truncate text-sm text-brand-text">
+                    No USB folder selected
+                  </p>
+                </div>
+              </div>
+              <Button variant="secondary" className="shrink-0" disabled>
+                Select USB Folder
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-6 border-t border-brand-border pt-4">
+            <Button variant="secondary" fullWidth disabled>
+              Open Folder
+            </Button>
+          </div>
+        </div>
+      </div>
+    </AppShell>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <line x1="12" x2="12" y1="5" y2="19" />
+      <line x1="5" x2="19" y1="12" y2="12" />
+    </svg>
+  );
+}
+
+function UsbIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="10" cy="7" r="1" />
+      <circle cx="4" cy="20" r="1" />
+      <path d="M4.7 19.3 10 7" />
+      <path d="m14 7 3 3 3-3" />
+      <path d="M17 10v7a2 2 0 0 1-2 2H9" />
+    </svg>
+  );
+}
