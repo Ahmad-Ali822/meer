@@ -59,7 +59,13 @@ pub struct SaveInvoicePdfError {
     pub message: String,
 }
 
-impl SaveInvoicePdfError {
+impl std::fmt::Display for SaveInvoicePdfError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl std::error::Error for SaveInvoicePdfError {}
     fn usb_unavailable(message: impl Into<String>) -> Self {
         Self {
             code: "usb_unavailable".to_string(),

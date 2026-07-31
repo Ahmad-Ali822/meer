@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  finalizeInvoiceNumber,
   getProposedInvoiceNumber,
   resolveInvoiceSavePlan,
 } from "../services/invoiceNumberingService";
@@ -72,16 +71,6 @@ export function useInvoiceNumbering(
     void refreshSavePlan();
   }, [customerName, invoiceDirectoryPath, refreshSavePlan]);
 
-  const finalizeAfterSuccessfulSave = useCallback(
-    async (year: number, sequence: number) => {
-      const nextProposal = await finalizeInvoiceNumber(year, sequence);
-      setProposal(nextProposal);
-      setSavePlan(null);
-      return nextProposal;
-    },
-    [],
-  );
-
   const displayedInvoiceNumber =
     savePlan?.invoiceNumber ?? proposal?.invoiceNumber ?? null;
 
@@ -93,6 +82,5 @@ export function useInvoiceNumbering(
     error,
     refreshProposal,
     refreshSavePlan,
-    finalizeAfterSuccessfulSave,
   };
 }

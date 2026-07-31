@@ -49,11 +49,11 @@ export function InvoicePreviewFooter({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button variant="secondary" onClick={onBackToEdit}>
+        <Button variant="secondary" onClick={onBackToEdit} disabled={isSaving}>
           <EditIcon />
           Back to Edit
         </Button>
-        <Button onClick={onGenerateSave} disabled={saveBlocked}>
+        <Button onClick={onGenerateSave} disabled={saveBlocked || isSaving}>
           <SaveIcon />
           {isSaving ? "Saving..." : "Generate & Save PDF"}
         </Button>

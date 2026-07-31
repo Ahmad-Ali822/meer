@@ -21,6 +21,7 @@ export function HomeScreen({
   const {
     status,
     isLoading,
+    isSelectingFolder,
     showUsbWarning,
     selectFolder,
     tryAgain,
@@ -38,6 +39,7 @@ export function HomeScreen({
         ? "Available"
         : "Unavailable"
       : null;
+  const folderBusy = isLoading || isSelectingFolder;
 
   return (
     <AppShell footerVariant="home" showHeader onLogout={onLogout}>
@@ -106,10 +108,14 @@ export function HomeScreen({
               <Button
                 variant="secondary"
                 className="shrink-0"
-                disabled={isLoading}
+                disabled={folderBusy}
                 onClick={() => void selectFolder()}
               >
-                {hasSelectedFolder ? "Change USB Folder" : "Select USB Folder"}
+                {isSelectingFolder
+                  ? "Selecting..."
+                  : hasSelectedFolder
+                    ? "Change USB Folder"
+                    : "Select USB Folder"}
               </Button>
             </div>
           </div>
@@ -118,7 +124,7 @@ export function HomeScreen({
             <Button
               variant="secondary"
               fullWidth
-              disabled={!hasSelectedFolder || isLoading}
+              disabled={!hasSelectedFolder || folderBusy}
               onClick={() => void openFolder()}
             >
               Open Folder

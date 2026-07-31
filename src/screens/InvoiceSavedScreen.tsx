@@ -1,8 +1,7 @@
 import { openPath } from "@tauri-apps/plugin-opener";
+import { AppFooter } from "../components/ui/AppFooter";
 import { Button } from "../components/ui/Button";
 import type { SavedInvoiceSummary } from "../types/invoice";
-import { APP_NAME, APP_VERSION } from "../theme/brand";
-import { formatRupees } from "../utils/money";
 
 interface InvoiceSavedScreenProps {
   summary: SavedInvoiceSummary;
@@ -102,20 +101,7 @@ export function InvoiceSavedScreen({
         </div>
       </main>
 
-      <footer className="border-t border-brand-border bg-white px-6 py-3">
-        <div className="flex items-center justify-between text-xs text-brand-muted">
-          <div className="flex gap-4">
-            <span>Export PDF</span>
-            <span>Save Draft</span>
-            <span>Clear All</span>
-          </div>
-          <p>
-            <span className="font-bold text-brand-navy">{APP_NAME}</span>
-            <span className="mx-2">|</span>
-            {APP_VERSION}
-          </p>
-        </div>
-      </footer>
+      <AppFooter />
     </div>
   );
 }
@@ -127,6 +113,10 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
       <dd className="font-medium text-brand-text">{value}</dd>
     </div>
   );
+}
+
+function formatRupees(amountRupees: number): string {
+  return `Rs. ${amountRupees.toLocaleString("en-PK")}`;
 }
 
 function CheckIcon() {

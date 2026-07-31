@@ -68,7 +68,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           <form className="space-y-4" onSubmit={handleSubmit} noValidate>
             <Input
               label="Username"
-              placeholder="e.g. admin_01"
+              placeholder="Enter username"
               value={username}
               error={showError}
               onChange={(event) => {
@@ -112,7 +112,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               className="mt-2 py-3"
               disabled={isSubmitting}
             >
-              Login
+              {isSubmitting ? "Logging in..." : "Login"}
               <LoginIcon />
             </Button>
           </form>

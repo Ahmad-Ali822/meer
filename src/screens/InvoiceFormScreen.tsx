@@ -17,6 +17,7 @@ interface InvoiceFormScreenProps {
   invoiceForm: InvoiceFormController;
   invoiceNumber: string | null;
   invoiceNumberLoading: boolean;
+  isPreviewLoading: boolean;
   onHome: () => void;
   onPreview: () => void;
 }
@@ -25,6 +26,7 @@ export function InvoiceFormScreen({
   invoiceForm,
   invoiceNumber,
   invoiceNumberLoading,
+  isPreviewLoading,
   onHome,
   onPreview,
 }: InvoiceFormScreenProps) {
@@ -176,13 +178,13 @@ export function InvoiceFormScreen({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant="secondary" onClick={onPreview}>
+          <Button
+            variant="secondary"
+            onClick={() => void onPreview()}
+            disabled={isPreviewLoading}
+          >
             <EyeIcon />
-            Preview Invoice
-          </Button>
-          <Button disabled>
-            <PdfIcon />
-            Generate &amp; Save PDF
+            {isPreviewLoading ? "Opening Preview..." : "Preview Invoice"}
           </Button>
         </div>
       </footer>
@@ -249,27 +251,6 @@ function EyeIcon() {
     >
       <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
       <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function PdfIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="16" x2="8" y1="13" y2="13" />
-      <line x1="16" x2="8" y1="17" y2="17" />
     </svg>
   );
 }

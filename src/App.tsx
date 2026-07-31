@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { LogoutDialog } from "./components/invoice/LogoutDialog";
 import { UsbUnavailableDialog } from "./components/invoice/UsbUnavailableDialog";
 import { HomeScreen } from "./screens/HomeScreen";
@@ -23,9 +23,11 @@ function App() {
   const [showSaveUsbWarning, setShowSaveUsbWarning] = useState(false);
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [savedSummary, setSavedSummary] = useState<SavedInvoiceSummary | null>(
     null,
   );
+  const isSavingRef = useRef(false);
   const invoiceForm = useInvoiceForm();
   const invoiceFolder = useInvoiceFolder();
   const invoiceNumbering = useInvoiceNumbering(
@@ -51,16 +53,31 @@ function App() {
   }, []);
 
   const handlePreviewRequest = useCallback(async () => {
+    if (isPreviewLoading || isSavingRef.current) {
+      return;
+    }
+
     if (!invoiceForm.validateForPreview()) {
       return;
     }
 
+    setIsPreviewLoading(true);
     setSaveErrorMessage(null);
-    await invoiceNumbering.refreshSavePlan();
-    goToPreview();
-  }, [invoiceForm, goToPreview, invoiceNumbering]);
+
+    try {
+      await invoiceNumbering.refreshSavePlan();
+      goToPreview();
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  }, [goToPreview, invoiceForm, invoiceNumbering, isPreviewLoading]);
 
   const handleSaveInvoice = useCallback(async () => {
+    if (isSavingRef.current) {
+      return;
+    }
+
+    isSavingRef.current = true;
     setIsSaving(true);
     setSaveErrorMessage(null);
 
@@ -104,6 +121,7 @@ function App() {
         : "Unable to save the invoice PDF. Please try again.";
       setSaveErrorMessage(message);
     } finally {
+      isSavingRef.current = false;
       setIsSaving(false);
     }
   }, [invoiceForm, invoiceNumbering]);
@@ -156,6 +174,7 @@ function App() {
         invoiceForm={invoiceForm}
         invoiceNumber={invoiceNumbering.displayedInvoiceNumber}
         invoiceNumberLoading={invoiceNumbering.isLoading}
+        isPreviewLoading={isPreviewLoading}
         onHome={goToHome}
         onPreview={handlePreviewRequest}
       />

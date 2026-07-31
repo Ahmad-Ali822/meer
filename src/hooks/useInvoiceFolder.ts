@@ -16,6 +16,7 @@ const EMPTY_STATUS: InvoiceDirectoryStatus = {
 export function useInvoiceFolder() {
   const [status, setStatus] = useState<InvoiceDirectoryStatus>(EMPTY_STATUS);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSelectingFolder, setIsSelectingFolder] = useState(false);
   const [showUsbWarning, setShowUsbWarning] = useState(false);
 
   const applyStatus = useCallback((next: InvoiceDirectoryStatus) => {
@@ -53,17 +54,23 @@ export function useInvoiceFolder() {
   }, [applyStatus]);
 
   const selectFolder = useCallback(async () => {
-    const pickedPath = await pickInvoiceDirectory();
+    setIsSelectingFolder(true);
 
-    if (!pickedPath) {
-      return;
-    }
+    try {
+      const pickedPath = await pickInvoiceDirectory();
 
-    const next = await saveSelectedInvoiceDirectory(pickedPath);
-    applyStatus(next);
+      if (!pickedPath) {
+        return;
+      }
 
-    if (next.isAvailable) {
-      setShowUsbWarning(false);
+      const next = await saveSelectedInvoiceDirectory(pickedPath);
+      applyStatus(next);
+
+      if (next.isAvailable) {
+        setShowUsbWarning(false);
+      }
+    } finally {
+      setIsSelectingFolder(false);
     }
   }, [applyStatus]);
 
@@ -101,6 +108,7 @@ export function useInvoiceFolder() {
   return {
     status,
     isLoading,
+    isSelectingFolder,
     showUsbWarning,
     selectFolder,
     tryAgain,

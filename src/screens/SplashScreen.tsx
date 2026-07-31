@@ -40,12 +40,8 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
       </div>
 
       <div className="px-6 pb-3">
-        <div className="mb-3 flex items-center justify-between text-xs text-brand-muted">
+        <div className="mb-3 flex items-center justify-end text-xs text-brand-muted">
           <span>{APP_VERSION}</span>
-          <div className="flex gap-4">
-            <span>Export PDF</span>
-            <span>Save Draft</span>
-          </div>
         </div>
         <div className="flex h-1.5 overflow-hidden rounded-full">
           <div className="flex-[9] bg-brand-navy" />

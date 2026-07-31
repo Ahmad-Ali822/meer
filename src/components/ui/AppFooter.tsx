@@ -21,14 +21,14 @@ export function AppFooter({ variant = "compact" }: AppFooterProps) {
             </p>
           </div>
 
-          <div className="hidden flex-col items-center gap-1 text-xs text-brand-muted md:flex">
+          <div className="hidden flex-col items-end gap-1 text-xs text-brand-muted md:flex">
             <span className="inline-flex items-center gap-1.5">
               <PhoneIcon />
-              +92 XXX XXXXXXX
+              +92 51 1234567
             </span>
             <span className="inline-flex items-center gap-1.5">
               <MapPinIcon />
-              123 Tech Avenue, Islamabad, PK
+              Main Market, Sector G-9/4, Islamabad
             </span>
           </div>
 

@@ -1,5 +1,5 @@
 {
-  "name": "meer-ilyas-billing",
+  "name": "meer-ilyas-software",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -8,7 +8,15 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "tauri": "tauri"
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" && cargo fmt --manifest-path src-tauri/Cargo.toml",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" && cargo fmt --manifest-path src-tauri/Cargo.toml -- --check",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "icons": "node scripts/generate-icons.mjs",
+    "tauri": "tauri",
+    "dev:tauri": "tauri dev",
+    "build:windows": "npm run icons && npm run build && tauri build --target x86_64-pc-windows-msvc"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
@@ -20,11 +28,20 @@
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
     "@tauri-apps/cli": "^2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "prettier": "^3.6.2",
+    "sharp": "^0.34.5",
+    "to-ico": "^1.1.5",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4"
+    "typescript-eslint": "^8.46.4",
+    "vite": "^7.0.4",
+    "vitest": "^3.2.4"
   }
 }
