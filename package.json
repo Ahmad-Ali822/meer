@@ -16,7 +16,8 @@
     "icons": "node scripts/generate-icons.mjs",
     "tauri": "tauri",
     "dev:tauri": "tauri dev",
-    "build:windows": "npm run icons && npm run build && tauri build --target x86_64-pc-windows-msvc"
+    "build:windows": "npm run icons && npm run build && tauri build --target x86_64-pc-windows-msvc",
+    "build:nsis": "npm run icons && npm run build && tauri build --target x86_64-pc-windows-msvc"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

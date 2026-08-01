@@ -80,7 +80,7 @@ export function useInvoiceForm() {
     setForm((current) => ({ ...current, advancePayment }));
   }, []);
 
-  const clearForm = useCallback(() => {
+  const resetForm = useCallback(() => {
     setForm(createEmptyInvoiceForm());
     setShowValidation(false);
   }, []);
@@ -110,7 +110,7 @@ export function useInvoiceForm() {
     setDiscountType,
     updateDiscountValue,
     updateAdvancePayment,
-    clearForm,
+    resetForm,
     touchValidation,
     validateForPreview,
   };

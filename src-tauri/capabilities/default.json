@@ -7,7 +7,13 @@
     "core:default",
     "core:path:default",
     "dialog:allow-open",
-    "opener:allow-open-path",
-    "opener:allow-reveal-item-in-dir"
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        { "path": "**/*.pdf" },
+        { "path": "/**/*.pdf" },
+        { "path": "**\\*.pdf" }
+      ]
+    }
   ]
 }

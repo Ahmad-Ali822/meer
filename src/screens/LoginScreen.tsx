@@ -66,24 +66,26 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           </div>
 
           <form className="space-y-4" onSubmit={handleSubmit} noValidate>
-            <Input
-              label="Username"
-              placeholder="Enter username"
-              value={username}
-              error={showError}
-              onChange={(event) => {
-                setUsername(event.target.value);
-                if (showError) {
-                  setShowError(false);
-                }
-              }}
-            />
-
-            <div className="space-y-1.5">
               <Input
-                label="Password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Enter password"
+                label="Username"
+                placeholder=""
+                autoComplete="username"
+                value={username}
+                error={showError}
+                onChange={(event) => {
+                  setUsername(event.target.value);
+                  if (showError) {
+                    setShowError(false);
+                  }
+                }}
+              />
+
+              <div className="space-y-1.5">
+                <Input
+                  label="Password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder=""
+                  autoComplete="current-password"
                 value={password}
                 error={showError}
                 onChange={(event) => {

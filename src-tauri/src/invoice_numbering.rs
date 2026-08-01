@@ -107,7 +107,10 @@ pub fn sanitize_customer_name_for_filename(customer_name: &str) -> String {
     let mut previous_was_hyphen = false;
 
     for character in customer_name.trim().chars() {
-        if matches!(character, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') {
+        if matches!(
+            character,
+            '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*'
+        ) {
             continue;
         }
 
@@ -231,7 +234,9 @@ pub fn find_highest_sequence(
     Ok(max_sequence)
 }
 
-pub fn get_proposed_invoice_number(settings: &AppSettings) -> Result<ProposedInvoiceNumber, String> {
+pub fn get_proposed_invoice_number(
+    settings: &AppSettings,
+) -> Result<ProposedInvoiceNumber, String> {
     let target_year = current_year();
     let invoice_root = settings
         .selected_invoice_directory
@@ -344,4 +349,28 @@ pub fn finalize_invoice_sequence(
     }
 
     get_proposed_invoice_number(&settings)
+}
+
+/// Resets the persisted invoice counter so the next invoice is MI-YYYY-0001.
+pub fn reset_invoice_sequence_counter(app: &tauri::AppHandle) -> Result<(), String> {
+    let mut settings = load_settings(app)?;
+    settings.year = Local::now().year();
+    settings.last_successful_sequence = 0;
+    save_settings(app, &settings)?;
+
+    if let Some(invoice_root) = settings.selected_invoice_directory.as_deref() {
+        let root_path = Path::new(invoice_root);
+
+        if invoice_folder::is_directory_available(invoice_root) {
+            save_usb_sequence(
+                root_path,
+                &SequenceMetadata {
+                    year: settings.year,
+                    last_successful_sequence: 0,
+                },
+            )?;
+        }
+    }
+
+    Ok(())
 }

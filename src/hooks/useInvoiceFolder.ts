@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   getInvoiceDirectoryStatus,
-  openInvoiceDirectory,
   pickInvoiceDirectory,
   recheckInvoiceDirectory,
   saveSelectedInvoiceDirectory,
@@ -83,19 +82,6 @@ export function useInvoiceFolder() {
     }
   }, []);
 
-  const openFolder = useCallback(async () => {
-    if (!status.path) {
-      return;
-    }
-
-    if (!status.isAvailable) {
-      setShowUsbWarning(true);
-      return;
-    }
-
-    await openInvoiceDirectory(status.path);
-  }, [status]);
-
   const selectAnotherFolder = useCallback(async () => {
     setShowUsbWarning(false);
     await selectFolder();
@@ -112,7 +98,6 @@ export function useInvoiceFolder() {
     showUsbWarning,
     selectFolder,
     tryAgain,
-    openFolder,
     selectAnotherFolder,
     dismissUsbWarning,
   };

@@ -5,12 +5,14 @@ mod invoice_pdf;
 mod settings;
 
 use invoice_numbering::{
-    finalize_invoice_sequence, get_proposed_invoice_number, resolve_invoice_save_plan,
-    ProposedInvoiceNumber,
+    finalize_invoice_sequence, get_proposed_invoice_number, reset_invoice_sequence_counter,
+    resolve_invoice_save_plan, InvoiceSavePlan, ProposedInvoiceNumber,
 };
-use invoice_pdf::{save_invoice_pdf, SaveInvoicePdfError, SaveInvoicePdfRequest, SaveInvoicePdfResult};
+use invoice_pdf::{
+    save_invoice_pdf, SaveInvoicePdfError, SaveInvoicePdfRequest, SaveInvoicePdfResult,
+};
 use settings::{load_settings, save_settings, AppSettings};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -100,6 +102,23 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            // One-time counter wipe so numbering restarts at MI-YYYY-0001.
+            if let Ok(marker) = app.path().resolve(
+                "invoice-sequence-reset-v1.flag",
+                tauri::path::BaseDirectory::AppConfig,
+            ) {
+                if !marker.exists() {
+                    let _ = reset_invoice_sequence_counter(app.handle());
+                    if let Some(parent) = marker.parent() {
+                        let _ = std::fs::create_dir_all(parent);
+                    }
+                    let _ = std::fs::write(&marker, b"done");
+                }
+            }
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             verify_login,
             get_invoice_directory_status,

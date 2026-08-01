@@ -18,7 +18,8 @@ interface InvoiceFormScreenProps {
   invoiceNumber: string | null;
   invoiceNumberLoading: boolean;
   isPreviewLoading: boolean;
-  onHome: () => void;
+  onResetInvoice: () => void;
+  onDiscardAndHome: () => void;
   onPreview: () => void;
 }
 
@@ -27,7 +28,8 @@ export function InvoiceFormScreen({
   invoiceNumber,
   invoiceNumberLoading,
   isPreviewLoading,
-  onHome,
+  onResetInvoice,
+  onDiscardAndHome,
   onPreview,
 }: InvoiceFormScreenProps) {
   const {
@@ -43,7 +45,6 @@ export function InvoiceFormScreen({
     setDiscountType,
     updateDiscountValue,
     updateAdvancePayment,
-    clearForm,
     touchValidation,
   } = invoiceForm;
 
@@ -62,7 +63,7 @@ export function InvoiceFormScreen({
       return;
     }
 
-    onHome();
+    onDiscardAndHome();
   }
 
   function handleClearRequest() {
@@ -118,7 +119,10 @@ export function InvoiceFormScreen({
             <div className="grid gap-4 md:grid-cols-2">
               <Input
                 label="Customer Name *"
-                placeholder="Enter full name"
+                placeholder=""
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
                 value={form.customerName}
                 error={Boolean(errors?.customerName)}
                 errorMessage={errors?.customerName}
@@ -127,7 +131,10 @@ export function InvoiceFormScreen({
               />
               <Input
                 label="Phone Number *"
-                placeholder="+92 3XX XXXXXXX"
+                placeholder=""
+                autoComplete="off"
+                inputMode="tel"
+                spellCheck={false}
                 value={form.phoneNumber}
                 error={Boolean(errors?.phoneNumber)}
                 errorMessage={errors?.phoneNumber}
@@ -169,7 +176,7 @@ export function InvoiceFormScreen({
             type="button"
             onClick={handleClearRequest}
             disabled={!isDirty}
-            className="text-sm font-medium text-brand-muted transition-colors hover:text-brand-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy/20 disabled:cursor-not-allowed disabled:opacity-40"
+            className="cursor-pointer text-sm font-medium text-brand-muted transition-colors hover:text-brand-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy/20 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Clear Form
           </button>
@@ -181,7 +188,7 @@ export function InvoiceFormScreen({
           <Button
             variant="secondary"
             onClick={() => void onPreview()}
-            disabled={isPreviewLoading}
+            disabled={isPreviewLoading || previewBlocked}
           >
             <EyeIcon />
             {isPreviewLoading ? "Opening Preview..." : "Preview Invoice"}
@@ -199,7 +206,7 @@ export function InvoiceFormScreen({
         open={showClearDialog}
         onContinue={() => setShowClearDialog(false)}
         onConfirm={() => {
-          clearForm();
+          onResetInvoice();
           setShowClearDialog(false);
         }}
       />
@@ -209,7 +216,7 @@ export function InvoiceFormScreen({
         onStay={() => setShowLeaveDialog(false)}
         onLeave={() => {
           setShowLeaveDialog(false);
-          onHome();
+          onDiscardAndHome();
         }}
       />
     </div>

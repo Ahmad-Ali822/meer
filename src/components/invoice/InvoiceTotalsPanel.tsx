@@ -34,7 +34,7 @@ export function DiscountSection({
         <button
           type="button"
           onClick={onAddDiscount}
-          className="font-semibold text-brand-navy underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy/20"
+          className="cursor-pointer font-semibold text-brand-navy underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy/20"
         >
           Add Discount
         </button>
@@ -51,7 +51,7 @@ export function DiscountSection({
         <button
           type="button"
           onClick={onRemoveDiscount}
-          className="text-xs font-semibold text-brand-red hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-red/20"
+          className="cursor-pointer text-xs font-semibold text-brand-red hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-red/20"
         >
           Remove Discount
         </button>
@@ -150,13 +150,13 @@ export function AdvancePaymentField({
     <div className="flex items-center justify-between gap-4">
       <label
         htmlFor="advance-payment"
-        className="text-sm font-medium text-brand-text"
+        className="text-sm font-medium text-black"
       >
         Advance Payment
       </label>
       <div className="w-40">
         <div className="relative">
-          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs font-semibold text-brand-muted">
+          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs font-semibold text-black">
             PKR
           </span>
           <input
@@ -165,7 +165,7 @@ export function AdvancePaymentField({
             onChange={(event) => onChange(event.target.value)}
             onBlur={onBlur}
             className={[
-              "w-full rounded-lg border bg-white py-2 pl-11 pr-3 text-right text-sm text-brand-text",
+              "w-full rounded-lg border bg-white py-2 pl-11 pr-3 text-right text-sm text-black",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy/20 focus-visible:border-brand-navy",
               error ? "border-brand-error" : "border-brand-border",
             ]
@@ -206,9 +206,9 @@ export function InvoiceTotalsPanel({
 }: InvoiceTotalsPanelProps) {
   return (
     <div className="ml-auto w-full max-w-sm space-y-3">
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-brand-muted">Subtotal</span>
-        <span className="font-medium text-brand-text">
+      <div className="flex items-center justify-between text-sm text-black">
+        <span>Subtotal</span>
+        <span className="font-medium">
           {formatRupees(totals.subtotalRupees)}
         </span>
       </div>
@@ -224,11 +224,9 @@ export function InvoiceTotalsPanel({
         onFieldBlur={onFieldBlur}
       />
 
-      <div className="flex items-center justify-between border-t border-brand-border pt-3">
-        <span className="text-base font-semibold text-brand-text">
-          Grand Total
-        </span>
-        <span className="text-xl font-bold text-brand-navy">
+      <div className="flex items-center justify-between border-t border-brand-border pt-3 text-black">
+        <span className="text-base font-semibold">Grand Total</span>
+        <span className="text-xl font-bold">
           {formatRupees(totals.grandTotalRupees)}
         </span>
       </div>
@@ -240,7 +238,7 @@ export function InvoiceTotalsPanel({
         onBlur={onFieldBlur}
       />
 
-      <div className="flex items-center justify-between rounded-lg bg-brand-navy px-4 py-3 text-white">
+      <div className="flex items-center justify-between rounded-lg border border-brand-border bg-white px-4 py-3 text-black">
         <span className="text-xs font-semibold tracking-wider">
           PENDING AMOUNT
         </span>

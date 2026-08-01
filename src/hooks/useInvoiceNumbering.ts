@@ -58,12 +58,24 @@ export function useInvoiceNumbering(
     }
   }, [customerName, invoiceDirectoryPath]);
 
+  const clearDraftPlan = useCallback(() => {
+    setSavePlan(null);
+    setError(null);
+  }, []);
+
   useEffect(() => {
     void refreshProposal();
   }, [invoiceDirectoryPath, refreshProposal]);
 
   useEffect(() => {
     if (!invoiceDirectoryPath) {
+      setSavePlan(null);
+      return;
+    }
+
+    // Only resolve a save plan while drafting a named customer.
+    // Empty drafts rely on the proposed next number after the last successful save.
+    if (!customerName.trim()) {
       setSavePlan(null);
       return;
     }
@@ -82,5 +94,6 @@ export function useInvoiceNumbering(
     error,
     refreshProposal,
     refreshSavePlan,
+    clearDraftPlan,
   };
 }

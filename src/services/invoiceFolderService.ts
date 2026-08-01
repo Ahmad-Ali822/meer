@@ -1,6 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { openPath } from "@tauri-apps/plugin-opener";
 import type { InvoiceDirectoryStatus } from "../types/settings";
 
 export async function getInvoiceDirectoryStatus(): Promise<InvoiceDirectoryStatus> {
@@ -31,8 +30,4 @@ export async function pickInvoiceDirectory(): Promise<string | null> {
   }
 
   return typeof selected === "string" ? selected : null;
-}
-
-export async function openInvoiceDirectory(path: string): Promise<void> {
-  await openPath(path);
 }

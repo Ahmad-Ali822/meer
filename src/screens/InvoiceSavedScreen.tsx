@@ -1,6 +1,7 @@
-import { openPath } from "@tauri-apps/plugin-opener";
+import { useState } from "react";
 import { AppFooter } from "../components/ui/AppFooter";
 import { Button } from "../components/ui/Button";
+import { openInvoicePdf } from "../services/invoiceOpenService";
 import type { SavedInvoiceSummary } from "../types/invoice";
 
 interface InvoiceSavedScreenProps {
@@ -14,6 +15,30 @@ export function InvoiceSavedScreen({
   onCreateNewInvoice,
   onHome,
 }: InvoiceSavedScreenProps) {
+  const [isOpeningPdf, setIsOpeningPdf] = useState(false);
+  const [openPdfError, setOpenPdfError] = useState<string | null>(null);
+
+  async function handleOpenPdf() {
+    if (isOpeningPdf) {
+      return;
+    }
+
+    setIsOpeningPdf(true);
+    setOpenPdfError(null);
+
+    try {
+      await openInvoicePdf(summary.filePath);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to open the PDF. Please try again.";
+      setOpenPdfError(message);
+    } finally {
+      setIsOpeningPdf(false);
+    }
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col bg-brand-bg">
       <main className="flex flex-1 items-center justify-center px-6 py-8">
@@ -44,9 +69,9 @@ export function InvoiceSavedScreen({
               label="Advance Paid"
               value={formatRupees(summary.advanceRupees)}
             />
-            <div className="flex items-center justify-between">
-              <dt className="text-brand-muted">Pending Amount</dt>
-              <dd className="font-bold text-brand-navy">
+            <div className="flex items-center justify-between text-black">
+              <dt>Pending Amount</dt>
+              <dd className="font-bold">
                 {formatRupees(summary.pendingRupees)}
               </dd>
             </div>
@@ -68,27 +93,26 @@ export function InvoiceSavedScreen({
               Create New Invoice
             </Button>
 
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                variant="secondary"
-                onClick={() => void openPath(summary.filePath)}
-              >
-                <PdfIcon />
-                Open PDF
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => void openPath(summary.folderPath)}
-              >
-                <FolderIcon />
-                Open Folder
-              </Button>
-            </div>
+            <Button
+              variant="secondary"
+              fullWidth
+              disabled={isOpeningPdf || !summary.filePath.trim()}
+              onClick={() => void handleOpenPdf()}
+            >
+              <PdfIcon />
+              {isOpeningPdf ? "Opening PDF..." : "Open PDF"}
+            </Button>
+
+            {openPdfError ? (
+              <p className="text-center text-xs text-brand-error" role="alert">
+                {openPdfError}
+              </p>
+            ) : null}
 
             <button
               type="button"
               onClick={onHome}
-              className="mx-auto flex items-center gap-2 text-sm font-medium text-brand-navy transition-colors hover:text-brand-navy/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy/20"
+              className="mx-auto flex cursor-pointer items-center gap-2 text-sm font-medium text-brand-navy transition-colors hover:text-brand-navy/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy/20"
             >
               <HomeIcon />
               Return Home
@@ -141,14 +165,6 @@ function PdfIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <polyline points="14 2 14 8 20 8" />
-    </svg>
-  );
-}
-
-function FolderIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
     </svg>
   );
 }

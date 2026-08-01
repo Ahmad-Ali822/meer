@@ -25,7 +25,6 @@ export function HomeScreen({
     showUsbWarning,
     selectFolder,
     tryAgain,
-    openFolder,
     selectAnotherFolder,
     dismissUsbWarning,
   } = invoiceFolder;
@@ -118,17 +117,6 @@ export function HomeScreen({
                     : "Select USB Folder"}
               </Button>
             </div>
-          </div>
-
-          <div className="mt-6 border-t border-brand-border pt-4">
-            <Button
-              variant="secondary"
-              fullWidth
-              disabled={!hasSelectedFolder || folderBusy}
-              onClick={() => void openFolder()}
-            >
-              Open Folder
-            </Button>
           </div>
         </div>
       </div>

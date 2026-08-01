@@ -56,7 +56,9 @@ export function ProductRowsTable({
                       onProductChange(product.id, "productName", event.target.value)
                     }
                     onBlur={onFieldBlur}
-                    placeholder="Description of service/item"
+                    placeholder=""
+                    autoComplete="off"
+                    spellCheck={false}
                     className={[
                       "w-full rounded-lg border bg-white px-3 py-2 text-sm text-brand-text",
                       "placeholder:text-brand-muted/70",
@@ -130,7 +132,7 @@ export function ProductRowsTable({
                     aria-label="Remove product row"
                     disabled={products.length <= 1}
                     onClick={() => onRemoveRow(product.id)}
-                    className="rounded p-1 text-brand-muted transition-colors hover:text-brand-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-red/20 disabled:cursor-not-allowed disabled:opacity-30"
+                    className="cursor-pointer rounded p-1 text-brand-muted transition-colors hover:text-brand-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-red/20 disabled:cursor-not-allowed disabled:opacity-30"
                   >
                     <RemoveIcon />
                   </button>
@@ -144,7 +146,7 @@ export function ProductRowsTable({
       <button
         type="button"
         onClick={onAddRow}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-brand-border bg-white px-4 py-3 text-sm font-semibold text-brand-navy transition-colors hover:bg-brand-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy/20"
+        className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-brand-border bg-white px-4 py-3 text-sm font-semibold text-brand-navy transition-colors hover:bg-brand-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy/20"
       >
         <PlusIcon />
         Add Product Row

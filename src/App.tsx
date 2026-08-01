@@ -35,6 +35,15 @@ function App() {
     invoiceForm.form.customerName,
   );
 
+  const resetInvoice = useCallback(() => {
+    invoiceForm.resetForm();
+    invoiceNumbering.clearDraftPlan();
+    setSaveErrorMessage(null);
+    setShowSaveUsbWarning(false);
+    setIsPreviewLoading(false);
+    setSavedSummary(null);
+  }, [invoiceForm, invoiceNumbering]);
+
   const goToLogin = useCallback(() => {
     setScreen("login");
   }, []);
@@ -43,14 +52,22 @@ function App() {
     setScreen("home");
   }, []);
 
-  const goToInvoice = useCallback(() => {
-    setScreen("invoice");
+  const startFreshInvoice = useCallback(() => {
+    resetInvoice();
     void invoiceNumbering.refreshProposal();
-  }, [invoiceNumbering]);
+    setScreen("invoice");
+  }, [invoiceNumbering, resetInvoice]);
 
-  const goToPreview = useCallback(() => {
-    setScreen("preview");
+  const returnToInvoiceEdit = useCallback(() => {
+    setSaveErrorMessage(null);
+    setScreen("invoice");
   }, []);
+
+  const discardInvoiceAndGoHome = useCallback(() => {
+    resetInvoice();
+    void invoiceNumbering.refreshProposal();
+    goToHome();
+  }, [goToHome, invoiceNumbering, resetInvoice]);
 
   const handlePreviewRequest = useCallback(async () => {
     if (isPreviewLoading || isSavingRef.current) {
@@ -66,11 +83,11 @@ function App() {
 
     try {
       await invoiceNumbering.refreshSavePlan();
-      goToPreview();
+      setScreen("preview");
     } finally {
       setIsPreviewLoading(false);
     }
-  }, [goToPreview, invoiceForm, invoiceNumbering, isPreviewLoading]);
+  }, [invoiceForm, invoiceNumbering, isPreviewLoading]);
 
   const handleSaveInvoice = useCallback(async () => {
     if (isSavingRef.current) {
@@ -97,7 +114,7 @@ function App() {
       );
       const result = await saveInvoicePdf(payload);
 
-      setSavedSummary({
+      const summary: SavedInvoiceSummary = {
         invoiceNumber: result.invoiceNumber,
         customerName: result.customerName,
         grandTotalRupees: result.grandTotalRupees,
@@ -106,8 +123,12 @@ function App() {
         folderPath: result.folderPath,
         filePath: result.filePath,
         nextInvoiceNumber: result.nextInvoiceNumber,
-      });
-      setShowSaveUsbWarning(false);
+      };
+
+      // Counter is persisted by Rust only after a successful PDF write.
+      // Clear the draft, then keep the summary for the Success screen.
+      resetInvoice();
+      setSavedSummary(summary);
       void invoiceNumbering.refreshProposal();
       setScreen("saved");
     } catch (error) {
@@ -124,15 +145,7 @@ function App() {
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [invoiceForm, invoiceNumbering]);
-
-  const handleCreateNewInvoice = useCallback(() => {
-    invoiceForm.clearForm();
-    setSavedSummary(null);
-    setSaveErrorMessage(null);
-    void invoiceNumbering.refreshProposal();
-    setScreen("invoice");
-  }, [invoiceForm, invoiceNumbering]);
+  }, [invoiceForm, invoiceNumbering, resetInvoice]);
 
   const handleLoginSuccess = useCallback(() => {
     setIsAuthenticated(true);
@@ -142,19 +155,18 @@ function App() {
   const performLogout = useCallback(() => {
     setIsAuthenticated(false);
     setShowLogoutDialog(false);
-    invoiceForm.clearForm();
-    setSavedSummary(null);
+    resetInvoice();
     setScreen("login");
-  }, [invoiceForm]);
+  }, [resetInvoice]);
 
   const handleLogoutRequest = useCallback(() => {
-    if (invoiceForm.isDirty) {
+    if (invoiceForm.isDirty || screen === "preview" || screen === "saved") {
       setShowLogoutDialog(true);
       return;
     }
 
     performLogout();
-  }, [invoiceForm.isDirty, performLogout]);
+  }, [invoiceForm.isDirty, performLogout, screen]);
 
   if (screen === "splash") {
     return <SplashScreen onComplete={goToLogin} />;
@@ -175,7 +187,8 @@ function App() {
         invoiceNumber={invoiceNumbering.displayedInvoiceNumber}
         invoiceNumberLoading={invoiceNumbering.isLoading}
         isPreviewLoading={isPreviewLoading}
-        onHome={goToHome}
+        onResetInvoice={resetInvoice}
+        onDiscardAndHome={discardInvoiceAndGoHome}
         onPreview={handlePreviewRequest}
       />
     );
@@ -191,7 +204,7 @@ function App() {
           savePlan={invoiceNumbering.savePlan}
           isSaving={isSaving}
           saveErrorMessage={saveErrorMessage}
-          onBackToEdit={goToInvoice}
+          onBackToEdit={returnToInvoiceEdit}
           onGenerateSave={() => void handleSaveInvoice()}
         />
         <UsbUnavailableDialog
@@ -217,8 +230,8 @@ function App() {
     return (
       <InvoiceSavedScreen
         summary={savedSummary}
-        onCreateNewInvoice={handleCreateNewInvoice}
-        onHome={goToHome}
+        onCreateNewInvoice={startFreshInvoice}
+        onHome={discardInvoiceAndGoHome}
       />
     );
   }
@@ -228,7 +241,7 @@ function App() {
       <HomeScreen
         invoiceFolder={invoiceFolder}
         onLogout={handleLogoutRequest}
-        onCreateInvoice={goToInvoice}
+        onCreateInvoice={startFreshInvoice}
       />
       <LogoutDialog
         open={showLogoutDialog}
