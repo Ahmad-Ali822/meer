@@ -470,7 +470,8 @@ fn generate_invoice_pdf(
     let total_x = right - 3.0;
 
     let row_h = 6.8;
-    let min_y_for_product = 50.0;
+    // Bottom 28 mm is reserved for the fixed page footer.
+    let min_y_for_product = 28.0;
 
     for (index, product) in request.products.iter().enumerate() {
         if cursor_y - row_h < min_y_for_product {
@@ -587,9 +588,9 @@ fn generate_invoice_pdf(
     if request.advance_rupees > 0 {
         totals_rows += 1;
     }
-    // Row pitch + pending underline + 8mm gap + separator + 3mm + thank-you + 3mm + address + pad
-    let totals_and_footer_height = (totals_rows as f32) * 5.5 + 1.5 + 8.0 + 3.0 + 3.0 + 12.0;
-    if cursor_y - totals_and_footer_height < 10.0 {
+    // Totals must stay above the reserved footer band (bottom 28 mm).
+    let totals_block_depth = (totals_rows as f32 - 1.0) * 5.5 + 1.5;
+    if cursor_y - totals_block_depth < 28.0 {
         write_text_center(
             &current_layer,
             &font_regular,
@@ -697,15 +698,11 @@ fn generate_invoice_pdf(
         red.clone(),
         navy.clone(),
     );
-    // Bottom edge of Pending Amount = its amount underline (see write_totals_row).
-    let pending_bottom_y = pending_amount_y - 1.5;
-
     draw_final_invoice_footer(
         &current_layer,
         &font_bold,
         left,
         right,
-        pending_bottom_y,
         navy.clone(),
         border_grey.clone(),
     );
@@ -812,21 +809,19 @@ fn write_totals_row(
     );
 }
 
-/// Draws the final invoice footer block relative to the Pending Amount bottom edge.
-/// PDF Y decreases downward. All values are millimetres.
+/// Draws the final invoice footer anchored to the physical bottom of the A5 page.
+/// printpdf uses a bottom-left origin, so these Y values are millimetres above the page bottom.
 fn draw_final_invoice_footer(
     layer: &printpdf::PdfLayerReference,
     font_bold: &printpdf::IndirectFontRef,
     left: f32,
     right: f32,
-    pending_bottom_y: f32,
     navy: Color,
     border_grey: Color,
 ) {
-    // pending_bottom_y → 8 mm empty → separator → 3 mm → thank you → 3 mm → address
-    let separator_y = pending_bottom_y - 8.0;
-    let thank_you_y = separator_y - 3.0;
-    let address_y = thank_you_y - 3.0;
+    let address_y = 10.0;
+    let thank_you_y = 16.0;
+    let separator_y = 22.0;
 
     draw_line(
         layer,
@@ -1057,26 +1052,25 @@ mod footer_visual_tests {
             red.clone(),
             navy.clone(),
         );
-        let pending_bottom_y = pending_amount_y - 1.5;
 
         draw_final_invoice_footer(
             &layer,
             &font_bold,
             left,
             right,
-            pending_bottom_y,
             navy,
             border_grey,
         );
 
-        let separator_y = pending_bottom_y - 8.0;
-        let thank_you_y = separator_y - 3.0;
-        let address_y = thank_you_y - 3.0;
-        assert!((separator_y - (pending_bottom_y - 8.0)).abs() < f32::EPSILON);
-        assert!((thank_you_y - (separator_y - 3.0)).abs() < f32::EPSILON);
-        assert!((address_y - (thank_you_y - 3.0)).abs() < f32::EPSILON);
+        let address_y = 10.0_f32;
+        let thank_you_y = 16.0_f32;
+        let separator_y = 22.0_f32;
+        assert!((address_y - 10.0).abs() < f32::EPSILON);
+        assert!((thank_you_y - 16.0).abs() < f32::EPSILON);
+        assert!((separator_y - 22.0).abs() < f32::EPSILON);
+        assert!(address_y < thank_you_y);
         assert!(thank_you_y < separator_y);
-        assert!(separator_y < pending_bottom_y);
+        assert!(separator_y < 28.0);
 
         let out = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("target")
