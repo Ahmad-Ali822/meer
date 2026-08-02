@@ -16,30 +16,32 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("Invalid username or password");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const trimmedUsername = username.trim();
-    const trimmedPassword = password.trim();
+    if (isSubmitting) {
+      return;
+    }
 
-    if (!trimmedUsername || !trimmedPassword) {
+    const trimmedUsername = username.trim();
+
+    if (!trimmedUsername || password.length === 0) {
+      setErrorMessage("Invalid username or password");
       setShowError(true);
       return;
     }
 
     setIsSubmitting(true);
+    setShowError(false);
 
     try {
-      const success = await verifyLogin(trimmedUsername, trimmedPassword);
-
-      if (success) {
-        setShowError(false);
-        onLoginSuccess();
-        return;
-      }
-
+      await verifyLogin(trimmedUsername, password);
+      onLoginSuccess();
+    } catch {
+      setErrorMessage("Invalid username or password");
       setShowError(true);
     } finally {
       setIsSubmitting(false);
@@ -66,28 +68,30 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           </div>
 
           <form className="space-y-4" onSubmit={handleSubmit} noValidate>
-              <Input
-                label="Username"
-                placeholder=""
-                autoComplete="username"
-                value={username}
-                error={showError}
-                onChange={(event) => {
-                  setUsername(event.target.value);
-                  if (showError) {
-                    setShowError(false);
-                  }
-                }}
-              />
+            <Input
+              label="Username"
+              placeholder=""
+              autoComplete="username"
+              value={username}
+              error={showError}
+              disabled={isSubmitting}
+              onChange={(event) => {
+                setUsername(event.target.value);
+                if (showError) {
+                  setShowError(false);
+                }
+              }}
+            />
 
-              <div className="space-y-1.5">
-                <Input
-                  label="Password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder=""
-                  autoComplete="current-password"
+            <div className="space-y-1.5">
+              <Input
+                label="Password"
+                type={showPassword ? "text" : "password"}
+                placeholder=""
+                autoComplete="current-password"
                 value={password}
                 error={showError}
+                disabled={isSubmitting}
                 onChange={(event) => {
                   setPassword(event.target.value);
                   if (showError) {
@@ -102,9 +106,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 }
               />
               {showError ? (
-                <p className="text-sm text-brand-error">
-                  Incorrect username or password.
-                </p>
+                <p className="text-sm text-brand-error">{errorMessage}</p>
               ) : null}
             </div>
 

@@ -32,8 +32,8 @@ fn build_directory_status(settings: &AppSettings) -> InvoiceDirectoryStatus {
 }
 
 #[tauri::command]
-fn verify_login(username: String, password: String) -> bool {
-    auth::verify_credentials(&username, &password)
+fn verify_login(username: String, password: String) -> Result<bool, String> {
+    auth::login(username, password)
 }
 
 #[tauri::command]
