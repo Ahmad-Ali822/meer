@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import type { DiscountType, InvoiceFormState } from "../types/invoice";
+import type { LoadedEditableInvoice } from "../types/invoiceEdit";
 import { calculateInvoiceFromForm } from "../utils/invoiceCalculations";
 import {
   createEmptyInvoiceForm,
@@ -85,6 +86,27 @@ export function useInvoiceForm() {
     setShowValidation(false);
   }, []);
 
+  const loadEditableInvoice = useCallback((invoice: LoadedEditableInvoice) => {
+    const hasDiscount = invoice.discount > 0;
+    setForm({
+      customerName: invoice.customerName,
+      phoneNumber: invoice.phoneNumber,
+      products:
+        invoice.products.length > 0
+          ? invoice.products.map((product) => ({
+              id: crypto.randomUUID(),
+              productName: product.name,
+              quantity: String(product.quantity),
+              unitPrice: String(product.unitPrice),
+            }))
+          : [createEmptyProductRow()],
+      discountType: hasDiscount ? "fixed" : "none",
+      discountValue: hasDiscount ? String(invoice.discount) : "",
+      advancePayment: invoice.advance > 0 ? String(invoice.advance) : "",
+    });
+    setShowValidation(false);
+  }, []);
+
   const enableValidation = useCallback(() => {
     setShowValidation(true);
   }, []);
@@ -111,6 +133,7 @@ export function useInvoiceForm() {
     updateDiscountValue,
     updateAdvancePayment,
     resetForm,
+    loadEditableInvoice,
     touchValidation,
     validateForPreview,
   };

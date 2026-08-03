@@ -7,6 +7,7 @@ import { ProductRowsTable } from "../components/invoice/ProductRowsTable";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import type { useInvoiceForm } from "../hooks/useInvoiceForm";
+import type { InvoiceEditorMode } from "../types/invoiceEdit";
 import { APP_VERSION } from "../theme/brand";
 import { formatInvoiceDate } from "../utils/invoiceDisplay";
 import { hasInvoiceFormErrors } from "../utils/invoiceValidation";
@@ -15,21 +16,27 @@ type InvoiceFormController = ReturnType<typeof useInvoiceForm>;
 
 interface InvoiceFormScreenProps {
   invoiceForm: InvoiceFormController;
+  mode: InvoiceEditorMode;
   invoiceNumber: string | null;
   invoiceNumberLoading: boolean;
+  invoiceDate: Date;
   isPreviewLoading: boolean;
   onResetInvoice: () => void;
   onDiscardAndHome: () => void;
+  onCancelEditing: () => void;
   onPreview: () => void;
 }
 
 export function InvoiceFormScreen({
   invoiceForm,
+  mode,
   invoiceNumber,
   invoiceNumberLoading,
+  invoiceDate,
   isPreviewLoading,
   onResetInvoice,
   onDiscardAndHome,
+  onCancelEditing,
   onPreview,
 }: InvoiceFormScreenProps) {
   const {
@@ -50,15 +57,18 @@ export function InvoiceFormScreen({
 
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const isEditMode = mode === "edit";
 
-  const invoiceDate = formatInvoiceDate(new Date());
   const previewBlocked = errors !== null && hasInvoiceFormErrors(errors);
   const invoiceNumberLabel = invoiceNumberLoading
     ? "Loading..."
     : invoiceNumber ?? "Unavailable";
+  const heading = isEditMode
+    ? `Editing Invoice: ${invoiceNumber ?? "Unavailable"}`
+    : "Create New Invoice";
 
   function handleHomeRequest() {
-    if (isDirty) {
+    if (isDirty || isEditMode) {
       setShowLeaveDialog(true);
       return;
     }
@@ -67,7 +77,7 @@ export function InvoiceFormScreen({
   }
 
   function handleClearRequest() {
-    if (!isDirty) {
+    if (!isDirty || isEditMode) {
       return;
     }
 
@@ -82,11 +92,11 @@ export function InvoiceFormScreen({
         <div className="mx-auto max-w-5xl rounded-xl border border-brand-border/70 bg-white p-6 shadow-sm">
           <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-brand-navy">
-                Create New Invoice
-              </h1>
+              <h1 className="text-2xl font-bold text-brand-navy">{heading}</h1>
               <p className="mt-1 text-sm text-brand-muted">
-                Generate professional documents for your clients.
+                {isEditMode
+                  ? "Update the saved invoice details, then preview and save changes."
+                  : "Generate professional documents for your clients."}
               </p>
             </div>
 
@@ -103,7 +113,9 @@ export function InvoiceFormScreen({
                 <p className="text-[10px] font-semibold tracking-wider text-brand-muted">
                   DATE
                 </p>
-                <p className="text-sm font-bold text-brand-navy">{invoiceDate}</p>
+                <p className="text-sm font-bold text-brand-navy">
+                  {formatInvoiceDate(invoiceDate)}
+                </p>
               </div>
             </div>
           </div>
@@ -172,14 +184,24 @@ export function InvoiceFormScreen({
 
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-brand-border bg-white px-6 py-3">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleClearRequest}
-            disabled={!isDirty}
-            className="cursor-pointer text-sm font-medium text-brand-muted transition-colors hover:text-brand-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy/20 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Clear Form
-          </button>
+          {isEditMode ? (
+            <Button
+              variant="secondary"
+              onClick={onCancelEditing}
+              disabled={isPreviewLoading}
+            >
+              Cancel Editing
+            </Button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleClearRequest}
+              disabled={!isDirty}
+              className="cursor-pointer text-sm font-medium text-brand-muted transition-colors hover:text-brand-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy/20 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Clear Form
+            </button>
+          )}
           <span className="text-brand-border">|</span>
           <span className="text-xs italic text-brand-muted">{APP_VERSION}</span>
         </div>

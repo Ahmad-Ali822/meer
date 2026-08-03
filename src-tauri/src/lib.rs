@@ -1,15 +1,21 @@
 mod auth;
+mod invoice_data;
 mod invoice_folder;
 mod invoice_numbering;
 mod invoice_pdf;
 mod settings;
 
+use invoice_data::{
+    ensure_shared_json_dir, load_editable_invoice, LoadedEditableInvoice,
+    UpdateSavedInvoiceRequest,
+};
 use invoice_numbering::{
     finalize_invoice_sequence, get_proposed_invoice_number, reset_invoice_sequence_counter,
     resolve_invoice_save_plan, InvoiceSavePlan, ProposedInvoiceNumber,
 };
 use invoice_pdf::{
-    save_invoice_pdf, SaveInvoicePdfError, SaveInvoicePdfRequest, SaveInvoicePdfResult,
+    save_invoice_pdf, update_saved_invoice, SaveInvoicePdfError, SaveInvoicePdfRequest,
+    SaveInvoicePdfResult,
 };
 use settings::{load_settings, save_settings, AppSettings};
 use tauri::{AppHandle, Manager};
@@ -97,6 +103,34 @@ fn save_invoice_pdf_command(
     save_invoice_pdf(&app, &request)
 }
 
+#[tauri::command]
+fn load_editable_invoice_command(path: String) -> Result<LoadedEditableInvoice, String> {
+    load_editable_invoice(&path)
+}
+
+#[tauri::command]
+fn ensure_invoice_json_dir_command(app: AppHandle) -> Result<String, String> {
+    let settings = load_settings(&app)?;
+    let invoice_root = settings
+        .selected_invoice_directory
+        .as_deref()
+        .ok_or_else(|| "No invoice folder selected.".to_string())?;
+
+    if !invoice_folder::is_directory_available(invoice_root) {
+        return Err("The selected invoice folder is not available.".to_string());
+    }
+
+    let json_dir = ensure_shared_json_dir(std::path::Path::new(invoice_root))?;
+    Ok(json_dir.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn update_saved_invoice_command(
+    request: UpdateSavedInvoiceRequest,
+) -> Result<SaveInvoicePdfResult, SaveInvoicePdfError> {
+    update_saved_invoice(&request)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -127,7 +161,10 @@ pub fn run() {
             get_proposed_invoice_number_command,
             resolve_invoice_save_plan_command,
             finalize_invoice_number_command,
-            save_invoice_pdf_command
+            save_invoice_pdf_command,
+            load_editable_invoice_command,
+            ensure_invoice_json_dir_command,
+            update_saved_invoice_command
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -37,8 +37,7 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "../src/assets/InvoiceTemplate.png",
-      "../src/assets/Logo.jpeg"
+      "../src/assets/InvoiceTemplate.png"
     ],
     "windows": {
       "nsis": {

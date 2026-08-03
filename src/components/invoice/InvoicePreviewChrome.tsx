@@ -1,4 +1,5 @@
 import { Button } from "../ui/Button";
+import type { InvoiceEditorMode } from "../../types/invoiceEdit";
 
 interface InvoicePreviewHeaderProps {
   invoiceNumber: string;
@@ -21,20 +22,26 @@ export function InvoicePreviewHeader({
 interface InvoicePreviewFooterProps {
   folderPath: string;
   fileName: string;
+  mode?: InvoiceEditorMode;
   saveBlocked?: boolean;
   isSaving?: boolean;
   onBackToEdit: () => void;
+  onCancelEditing?: () => void;
   onGenerateSave: () => void;
 }
 
 export function InvoicePreviewFooter({
   folderPath,
   fileName,
+  mode = "new",
   saveBlocked = false,
   isSaving = false,
   onBackToEdit,
+  onCancelEditing,
   onGenerateSave,
 }: InvoicePreviewFooterProps) {
+  const isEditMode = mode === "edit";
+
   return (
     <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-brand-border bg-white px-6 py-3">
       <div className="min-w-0 text-xs text-brand-muted">
@@ -49,13 +56,26 @@ export function InvoicePreviewFooter({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
+        {isEditMode ? (
+          <Button
+            variant="secondary"
+            onClick={onCancelEditing}
+            disabled={isSaving}
+          >
+            Cancel Editing
+          </Button>
+        ) : null}
         <Button variant="secondary" onClick={onBackToEdit} disabled={isSaving}>
           <EditIcon />
           Back to Edit
         </Button>
         <Button onClick={onGenerateSave} disabled={saveBlocked || isSaving}>
           <SaveIcon />
-          {isSaving ? "Saving..." : "Generate & Save PDF"}
+          {isSaving
+            ? "Saving..."
+            : isEditMode
+              ? "Save Changes"
+              : "Generate & Save PDF"}
         </Button>
       </div>
     </footer>

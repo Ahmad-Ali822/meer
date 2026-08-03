@@ -1,5 +1,6 @@
 export interface SaveInvoiceProductLine {
   productName: string;
+  quantity: number;
   quantityDisplay: string;
   unitPriceRupees: number;
   lineTotalRupees: number;
@@ -16,6 +17,7 @@ export interface SaveInvoicePdfRequest {
   advanceRupees: number;
   pendingRupees: number;
   invoiceDate: string;
+  invoiceDateIso: string;
 }
 
 export interface SaveInvoicePdfResult {

@@ -96,6 +96,8 @@ export function validateInvoiceForm(form: InvoiceFormState): InvoiceFormErrors {
         rowErrors.quantity = "Quantity is required.";
       } else if (quantity <= 0) {
         rowErrors.quantity = "Quantity must be greater than zero.";
+      } else if (!Number.isInteger(quantity)) {
+        rowErrors.quantity = "Quantity must be a whole number.";
       }
 
       if (!product.unitPrice.trim()) {

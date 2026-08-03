@@ -10,11 +10,21 @@ import { SplashScreen } from "./screens/SplashScreen";
 import { useInvoiceFolder } from "./hooks/useInvoiceFolder";
 import { useInvoiceForm } from "./hooks/useInvoiceForm";
 import { useInvoiceNumbering } from "./hooks/useInvoiceNumbering";
+import {
+  loadEditableInvoice,
+  pickEditableInvoiceFile,
+  updateSavedInvoice,
+} from "./services/invoiceEditService";
 import { saveInvoicePdf } from "./services/invoiceSaveService";
+import type { InvoiceEditSession } from "./types/invoiceEdit";
 import type { AppScreen } from "./types/navigation";
 import type { SavedInvoiceSummary } from "./types/invoice";
 import { isSaveInvoicePdfError } from "./types/invoiceSave";
-import { buildSaveInvoicePdfRequest } from "./utils/invoiceSave";
+import { parseInvoiceDateIso } from "./utils/invoiceDisplay";
+import {
+  buildSaveInvoicePdfRequest,
+  buildUpdateSavedInvoiceRequest,
+} from "./utils/invoiceSave";
 
 function App() {
   const [screen, setScreen] = useState<AppScreen>("splash");
@@ -22,27 +32,41 @@ function App() {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showSaveUsbWarning, setShowSaveUsbWarning] = useState(false);
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
+  const [editErrorMessage, setEditErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [isLoadingEdit, setIsLoadingEdit] = useState(false);
+  const [editSession, setEditSession] = useState<InvoiceEditSession | null>(
+    null,
+  );
   const [savedSummary, setSavedSummary] = useState<SavedInvoiceSummary | null>(
     null,
   );
   const isSavingRef = useRef(false);
+  const isLoadingEditRef = useRef(false);
   const invoiceForm = useInvoiceForm();
   const invoiceFolder = useInvoiceFolder();
   const invoiceNumbering = useInvoiceNumbering(
-    invoiceFolder.status.path,
-    invoiceForm.form.customerName,
+    editSession ? null : invoiceFolder.status.path,
+    editSession ? "" : invoiceForm.form.customerName,
   );
+
+  const invoiceMode = editSession ? "edit" : "new";
+
+  const clearEditSession = useCallback(() => {
+    setEditSession(null);
+    setEditErrorMessage(null);
+  }, []);
 
   const resetInvoice = useCallback(() => {
     invoiceForm.resetForm();
     invoiceNumbering.clearDraftPlan();
+    clearEditSession();
     setSaveErrorMessage(null);
     setShowSaveUsbWarning(false);
     setIsPreviewLoading(false);
     setSavedSummary(null);
-  }, [invoiceForm, invoiceNumbering]);
+  }, [clearEditSession, invoiceForm, invoiceNumbering]);
 
   const goToLogin = useCallback(() => {
     setScreen("login");
@@ -82,12 +106,14 @@ function App() {
     setSaveErrorMessage(null);
 
     try {
-      await invoiceNumbering.refreshSavePlan();
+      if (invoiceMode === "new") {
+        await invoiceNumbering.refreshSavePlan();
+      }
       setScreen("preview");
     } finally {
       setIsPreviewLoading(false);
     }
-  }, [invoiceForm, invoiceNumbering, isPreviewLoading]);
+  }, [invoiceForm, invoiceMode, invoiceNumbering, isPreviewLoading]);
 
   const handleSaveInvoice = useCallback(async () => {
     if (isSavingRef.current) {
@@ -99,6 +125,32 @@ function App() {
     setSaveErrorMessage(null);
 
     try {
+      if (invoiceMode === "edit" && editSession) {
+        const payload = buildUpdateSavedInvoiceRequest(
+          editSession.jsonPath,
+          invoiceForm.form,
+          invoiceForm.totals,
+        );
+        const result = await updateSavedInvoice(payload);
+
+        const summary: SavedInvoiceSummary = {
+          invoiceNumber: result.invoiceNumber,
+          customerName: result.customerName,
+          grandTotalRupees: result.grandTotalRupees,
+          advanceRupees: result.advanceRupees,
+          pendingRupees: result.pendingRupees,
+          folderPath: result.folderPath,
+          filePath: result.filePath,
+          nextInvoiceNumber: result.nextInvoiceNumber,
+        };
+
+        resetInvoice();
+        setSavedSummary(summary);
+        void invoiceNumbering.refreshProposal();
+        setScreen("saved");
+        return;
+      }
+
       const savePlan =
         invoiceNumbering.savePlan ??
         (await invoiceNumbering.refreshSavePlan());
@@ -125,8 +177,6 @@ function App() {
         nextInvoiceNumber: result.nextInvoiceNumber,
       };
 
-      // Counter is persisted by Rust only after a successful PDF write.
-      // Clear the draft, then keep the summary for the Success screen.
       resetInvoice();
       setSavedSummary(summary);
       void invoiceNumbering.refreshProposal();
@@ -139,13 +189,67 @@ function App() {
 
       const message = isSaveInvoicePdfError(error)
         ? error.message
-        : "Unable to save the invoice PDF. Please try again.";
+        : invoiceMode === "edit"
+          ? "Unable to save invoice changes. Please try again."
+          : "Unable to save the invoice PDF. Please try again.";
       setSaveErrorMessage(message);
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [invoiceForm, invoiceNumbering, resetInvoice]);
+  }, [
+    editSession,
+    invoiceForm,
+    invoiceMode,
+    invoiceNumbering,
+    resetInvoice,
+  ]);
+
+  const handleEditSavedInvoice = useCallback(async () => {
+    if (isLoadingEditRef.current || isSavingRef.current) {
+      return;
+    }
+
+    isLoadingEditRef.current = true;
+    setIsLoadingEdit(true);
+    setEditErrorMessage(null);
+
+    try {
+      const selectedPath = await pickEditableInvoiceFile(
+        invoiceFolder.status.path,
+      );
+      if (!selectedPath) {
+        return;
+      }
+
+      const loaded = await loadEditableInvoice(selectedPath);
+      invoiceForm.loadEditableInvoice(loaded);
+      invoiceNumbering.clearDraftPlan();
+      setEditSession({
+        mode: "edit",
+        invoiceNumber: loaded.invoiceNumber,
+        invoiceDateIso: loaded.date,
+        jsonPath: loaded.jsonPath,
+        pdfPath: loaded.pdfPath,
+        folderPath: loaded.folderPath,
+        fileName: loaded.fileName,
+      });
+      setSaveErrorMessage(null);
+      setSavedSummary(null);
+      setScreen("invoice");
+    } catch (error) {
+      const message =
+        typeof error === "string"
+          ? error
+          : error instanceof Error
+            ? error.message
+            : "Unable to open the selected invoice.";
+      setEditErrorMessage(message);
+    } finally {
+      isLoadingEditRef.current = false;
+      setIsLoadingEdit(false);
+    }
+  }, [invoiceFolder.status.path, invoiceForm, invoiceNumbering]);
 
   const handleLoginSuccess = useCallback(() => {
     setIsAuthenticated(true);
@@ -168,6 +272,16 @@ function App() {
     performLogout();
   }, [invoiceForm.isDirty, performLogout, screen]);
 
+  const displayedInvoiceNumber =
+    invoiceMode === "edit" && editSession
+      ? editSession.invoiceNumber
+      : invoiceNumbering.displayedInvoiceNumber;
+
+  const invoiceDate =
+    invoiceMode === "edit" && editSession
+      ? parseInvoiceDateIso(editSession.invoiceDateIso)
+      : new Date();
+
   if (screen === "splash") {
     return <SplashScreen onComplete={goToLogin} />;
   }
@@ -184,27 +298,53 @@ function App() {
     return (
       <InvoiceFormScreen
         invoiceForm={invoiceForm}
-        invoiceNumber={invoiceNumbering.displayedInvoiceNumber}
-        invoiceNumberLoading={invoiceNumbering.isLoading}
+        mode={invoiceMode}
+        invoiceNumber={displayedInvoiceNumber}
+        invoiceNumberLoading={
+          invoiceMode === "new" ? invoiceNumbering.isLoading : false
+        }
+        invoiceDate={invoiceDate}
         isPreviewLoading={isPreviewLoading}
-        onResetInvoice={resetInvoice}
+        onResetInvoice={
+          invoiceMode === "edit" ? discardInvoiceAndGoHome : resetInvoice
+        }
         onDiscardAndHome={discardInvoiceAndGoHome}
+        onCancelEditing={discardInvoiceAndGoHome}
         onPreview={handlePreviewRequest}
       />
     );
   }
 
   if (screen === "preview") {
+    const editSavePlan =
+      invoiceMode === "edit" && editSession
+        ? {
+            invoiceNumber: editSession.invoiceNumber,
+            nextInvoiceNumber: editSession.invoiceNumber,
+            year: 0,
+            sequence: 0,
+            folderPath: editSession.folderPath,
+            fileName: editSession.fileName,
+            filePath: editSession.pdfPath,
+            fileExists: false,
+          }
+        : null;
+
     return (
       <>
         <InvoicePreviewScreen
           form={invoiceForm.form}
           totals={invoiceForm.totals}
-          invoiceNumber={invoiceNumbering.displayedInvoiceNumber}
-          savePlan={invoiceNumbering.savePlan}
+          invoiceNumber={displayedInvoiceNumber}
+          invoiceDate={invoiceDate}
+          savePlan={
+            invoiceMode === "edit" ? editSavePlan : invoiceNumbering.savePlan
+          }
+          mode={invoiceMode}
           isSaving={isSaving}
           saveErrorMessage={saveErrorMessage}
           onBackToEdit={returnToInvoiceEdit}
+          onCancelEditing={discardInvoiceAndGoHome}
           onGenerateSave={() => void handleSaveInvoice()}
         />
         <UsbUnavailableDialog
@@ -242,6 +382,9 @@ function App() {
         invoiceFolder={invoiceFolder}
         onLogout={handleLogoutRequest}
         onCreateInvoice={startFreshInvoice}
+        onEditSavedInvoice={() => void handleEditSavedInvoice()}
+        isLoadingEdit={isLoadingEdit}
+        editErrorMessage={editErrorMessage}
       />
       <LogoutDialog
         open={showLogoutDialog}

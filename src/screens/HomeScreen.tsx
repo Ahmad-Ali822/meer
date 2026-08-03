@@ -11,12 +11,18 @@ interface HomeScreenProps {
   invoiceFolder: InvoiceFolderController;
   onLogout: () => void;
   onCreateInvoice: () => void;
+  onEditSavedInvoice: () => void;
+  isLoadingEdit?: boolean;
+  editErrorMessage?: string | null;
 }
 
 export function HomeScreen({
   invoiceFolder,
   onLogout,
   onCreateInvoice,
+  onEditSavedInvoice,
+  isLoadingEdit = false,
+  editErrorMessage = null,
 }: HomeScreenProps) {
   const {
     status,
@@ -61,15 +67,31 @@ export function HomeScreen({
             </p>
           </div>
 
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button
               className="px-6 py-3 text-base"
               onClick={onCreateInvoice}
+              disabled={isLoadingEdit}
             >
               <PlusIcon />
               Generate New Invoice
             </Button>
+            <Button
+              variant="secondary"
+              className="px-6 py-3 text-base"
+              onClick={onEditSavedInvoice}
+              disabled={isLoadingEdit}
+            >
+              <EditIcon />
+              {isLoadingEdit ? "Opening..." : "Edit Saved Invoice"}
+            </Button>
           </div>
+
+          {editErrorMessage ? (
+            <p className="mt-3 text-center text-sm text-brand-error">
+              {editErrorMessage}
+            </p>
+          ) : null}
 
           <div className="mt-6 rounded-lg border border-brand-border bg-brand-bg/60 px-4 py-3">
             <div className="flex items-center justify-between gap-4">
@@ -146,6 +168,25 @@ function PlusIcon() {
     >
       <line x1="12" x2="12" y1="5" y2="19" />
       <line x1="5" x2="19" y1="12" y2="12" />
+    </svg>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
     </svg>
   );
 }

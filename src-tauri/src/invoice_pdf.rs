@@ -1,24 +1,33 @@
 use std::fs;
 use std::io::BufWriter;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use printpdf::path::{PaintMode, WindingOrder};
 use printpdf::{
     BuiltinFont, Color, Image, ImageTransform, Line, Mm, PdfDocument, Point, Polygon, Rgb,
 };
 use serde::Deserialize;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 use crate::invoice_folder;
 use crate::invoice_numbering::{
     finalize_invoice_sequence, resolve_invoice_save_plan, InvoiceSavePlan,
 };
+use crate::invoice_data::{
+    backups_dir, calculate_totals_from_products, editable_json_path_in_shared_folder,
+    format_iso_date_for_display, invoice_root_from_json_path, load_editable_invoice_from_json_path,
+    missing_editable_data_message, reject_unsafe_path, serialize_editable_invoice,
+    validate_customer_name, validate_editable_invoice_data, validate_phone,
+    EditableInvoiceCustomer, EditableInvoiceData, EditableInvoiceProduct,
+    UpdateSavedInvoiceRequest, EDITABLE_SUFFIX,
+};
 use crate::settings::load_settings;
 
 const APP_SUBTITLE: &str = "Hotel Ware & Kitchen Ware";
-const LOGO_FILE_NAME: &str = "Logo.jpeg";
+/// Same Welcome/Home logo asset, embedded at compile time for installed builds.
+const LOGO_BYTES: &[u8] = include_bytes!("../../src/assets/Logo.jpeg");
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveInvoicePdfRequest {
     pub customer_name: String,
@@ -31,12 +40,14 @@ pub struct SaveInvoicePdfRequest {
     pub advance_rupees: i64,
     pub pending_rupees: i64,
     pub invoice_date: String,
+    pub invoice_date_iso: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveInvoiceProductLine {
     pub product_name: String,
+    pub quantity: i64,
     pub quantity_display: String,
     pub unit_price_rupees: i64,
     pub line_total_rupees: i64,
@@ -85,6 +96,13 @@ impl SaveInvoicePdfError {
         }
     }
 
+    fn file_locked(message: impl Into<String>) -> Self {
+        Self {
+            code: "file_locked".to_string(),
+            message: message.into(),
+        }
+    }
+
     fn save_failed(message: impl Into<String>) -> Self {
         Self {
             code: "save_failed".to_string(),
@@ -125,11 +143,97 @@ pub fn save_invoice_pdf(
         ));
     }
 
-    let pdf_bytes =
-        generate_invoice_pdf(app, &save_plan, request).map_err(SaveInvoicePdfError::save_failed)?;
+    let products: Vec<EditableInvoiceProduct> = request
+        .products
+        .iter()
+        .map(|product| EditableInvoiceProduct {
+            name: product.product_name.trim().to_string(),
+            quantity: product.quantity,
+            unit_price: product.unit_price_rupees,
+        })
+        .collect();
 
-    atomic_write_bytes(Path::new(&save_plan.file_path), &pdf_bytes)
+    let totals = calculate_totals_from_products(
+        &products,
+        request.discount_amount_rupees,
+        request.advance_rupees,
+    )
+    .map_err(SaveInvoicePdfError::save_failed)?;
+
+    validate_customer_name(&request.customer_name).map_err(SaveInvoicePdfError::save_failed)?;
+    validate_phone(&request.phone_number).map_err(SaveInvoicePdfError::save_failed)?;
+
+    let mut pdf_request = request.clone();
+    pdf_request.customer_name = request.customer_name.trim().to_string();
+    pdf_request.phone_number = request.phone_number.trim().to_string();
+    pdf_request.discount_amount_rupees = totals.discount_amount_rupees;
+    pdf_request.subtotal_rupees = totals.subtotal_rupees;
+    pdf_request.grand_total_rupees = totals.grand_total_rupees;
+    pdf_request.advance_rupees = totals.advance_rupees;
+    pdf_request.pending_rupees = totals.pending_rupees;
+    pdf_request.products = products
+        .iter()
+        .zip(totals.line_totals_rupees.iter())
+        .map(|(product, line_total)| SaveInvoiceProductLine {
+            product_name: product.name.clone(),
+            quantity: product.quantity,
+            quantity_display: product.quantity.to_string(),
+            unit_price_rupees: product.unit_price,
+            line_total_rupees: *line_total,
+        })
+        .collect();
+    if totals.discount_amount_rupees <= 0 {
+        pdf_request.discount_label = None;
+    }
+
+    let editable = EditableInvoiceData {
+        schema_version: 1,
+        invoice_number: save_plan.invoice_number.clone(),
+        date: request.invoice_date_iso.trim().to_string(),
+        customer: EditableInvoiceCustomer {
+            name: pdf_request.customer_name.clone(),
+            phone: pdf_request.phone_number.clone(),
+        },
+        products,
+        discount: totals.discount_amount_rupees,
+        advance: totals.advance_rupees,
+    };
+    validate_editable_invoice_data(&editable).map_err(SaveInvoicePdfError::save_failed)?;
+
+    let pdf_path = Path::new(&save_plan.file_path);
+    let json_path = editable_json_path_in_shared_folder(Path::new(invoice_root), pdf_path)
         .map_err(SaveInvoicePdfError::save_failed)?;
+
+    let pdf_bytes = generate_invoice_pdf(&save_plan, &pdf_request)
+        .map_err(SaveInvoicePdfError::save_failed)?;
+    let json_bytes =
+        serialize_editable_invoice(&editable).map_err(SaveInvoicePdfError::save_failed)?;
+
+    let pdf_temp = temp_sibling_path(pdf_path, "pdf.tmp");
+    let json_temp = temp_sibling_path(&json_path, "invoice.json.tmp");
+
+    if let Err(error) = write_bytes_to_path(&pdf_temp, &pdf_bytes) {
+        let _ = fs::remove_file(&pdf_temp);
+        return Err(map_io_error(error));
+    }
+
+    if let Err(error) = write_bytes_to_path(&json_temp, &json_bytes) {
+        let _ = fs::remove_file(&pdf_temp);
+        let _ = fs::remove_file(&json_temp);
+        return Err(map_io_error(error));
+    }
+
+    if let Err(error) = replace_file(&pdf_temp, pdf_path) {
+        let _ = fs::remove_file(&pdf_temp);
+        let _ = fs::remove_file(&json_temp);
+        return Err(map_io_error(error));
+    }
+
+    if let Err(error) = replace_file(&json_temp, &json_path) {
+        let _ = fs::remove_file(&json_temp);
+        let _ = fs::remove_file(pdf_path);
+        return Err(map_io_error(error));
+    }
 
     finalize_invoice_sequence(app, save_plan.year, save_plan.sequence)
         .map_err(SaveInvoicePdfError::save_failed)?;
@@ -137,45 +241,268 @@ pub fn save_invoice_pdf(
     Ok(SaveInvoicePdfResult {
         invoice_number: save_plan.invoice_number.clone(),
         next_invoice_number: save_plan.next_invoice_number.clone(),
-        customer_name: request.customer_name.trim().to_string(),
-        grand_total_rupees: request.grand_total_rupees,
-        advance_rupees: request.advance_rupees,
-        pending_rupees: request.pending_rupees,
+        customer_name: pdf_request.customer_name,
+        grand_total_rupees: totals.grand_total_rupees,
+        advance_rupees: totals.advance_rupees,
+        pending_rupees: totals.pending_rupees,
         folder_path: save_plan.folder_path.clone(),
         file_path: save_plan.file_path.clone(),
     })
 }
 
-fn atomic_write_bytes(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    let temp_path = path.with_extension("pdf.tmp");
+pub fn update_saved_invoice(
+    request: &UpdateSavedInvoiceRequest,
+) -> Result<SaveInvoicePdfResult, SaveInvoicePdfError> {
+    let json_path = PathBuf::from(request.editable_json_path.trim());
+    reject_unsafe_path(&json_path).map_err(SaveInvoicePdfError::save_failed)?;
 
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    let file_name = json_path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default();
+    if !file_name
+        .to_ascii_lowercase()
+        .ends_with(EDITABLE_SUFFIX)
+    {
+        return Err(SaveInvoicePdfError::save_failed(
+            "Editable invoice path must be an .invoice.json file.",
+        ));
     }
 
-    fs::write(&temp_path, bytes).map_err(|error| error.to_string())?;
-    fs::rename(&temp_path, path).map_err(|error| error.to_string())?;
+    if !json_path.is_file() {
+        return Err(SaveInvoicePdfError::save_failed(
+            missing_editable_data_message(),
+        ));
+    }
 
+    let existing = load_editable_invoice_from_json_path(&json_path)
+        .map_err(SaveInvoicePdfError::save_failed)?;
+    let pdf_path = PathBuf::from(&existing.pdf_path);
+
+    if !pdf_path.is_file() {
+        return Err(SaveInvoicePdfError::save_failed(
+            "The matching invoice PDF could not be found beside the editable data file.",
+        ));
+    }
+
+    let products: Vec<EditableInvoiceProduct> = request
+        .products
+        .iter()
+        .map(|product| EditableInvoiceProduct {
+            name: product.name.trim().to_string(),
+            quantity: product.quantity,
+            unit_price: product.unit_price_rupees,
+        })
+        .collect();
+
+    let totals = calculate_totals_from_products(
+        &products,
+        request.discount_rupees,
+        request.advance_rupees,
+    )
+    .map_err(SaveInvoicePdfError::save_failed)?;
+
+    validate_customer_name(&request.customer_name).map_err(SaveInvoicePdfError::save_failed)?;
+    validate_phone(&request.phone_number).map_err(SaveInvoicePdfError::save_failed)?;
+
+    let updated_data = EditableInvoiceData {
+        schema_version: 1,
+        invoice_number: existing.invoice_number.clone(),
+        date: existing.date.clone(),
+        customer: EditableInvoiceCustomer {
+            name: request.customer_name.trim().to_string(),
+            phone: request.phone_number.trim().to_string(),
+        },
+        products: products.clone(),
+        discount: totals.discount_amount_rupees,
+        advance: totals.advance_rupees,
+    };
+    validate_editable_invoice_data(&updated_data).map_err(SaveInvoicePdfError::save_failed)?;
+
+    let display_date =
+        format_iso_date_for_display(&updated_data.date).map_err(SaveInvoicePdfError::save_failed)?;
+
+    let pdf_request = SaveInvoicePdfRequest {
+        customer_name: updated_data.customer.name.clone(),
+        phone_number: updated_data.customer.phone.clone(),
+        products: products
+            .iter()
+            .zip(totals.line_totals_rupees.iter())
+            .map(|(product, line_total)| SaveInvoiceProductLine {
+                product_name: product.name.clone(),
+                quantity: product.quantity,
+                quantity_display: product.quantity.to_string(),
+                unit_price_rupees: product.unit_price,
+                line_total_rupees: *line_total,
+            })
+            .collect(),
+        discount_label: if totals.discount_amount_rupees > 0 {
+            Some("Discount".to_string())
+        } else {
+            None
+        },
+        discount_amount_rupees: totals.discount_amount_rupees,
+        subtotal_rupees: totals.subtotal_rupees,
+        grand_total_rupees: totals.grand_total_rupees,
+        advance_rupees: totals.advance_rupees,
+        pending_rupees: totals.pending_rupees,
+        invoice_date: display_date,
+        invoice_date_iso: updated_data.date.clone(),
+    };
+
+    let save_plan = InvoiceSavePlan {
+        invoice_number: updated_data.invoice_number.clone(),
+        next_invoice_number: updated_data.invoice_number.clone(),
+        year: existing
+            .invoice_number
+            .split('-')
+            .nth(1)
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(0),
+        sequence: existing
+            .invoice_number
+            .split('-')
+            .nth(2)
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(0),
+        folder_path: existing.folder_path.clone(),
+        file_name: existing.file_name.clone(),
+        file_path: existing.pdf_path.clone(),
+        file_exists: true,
+    };
+
+    let pdf_bytes =
+        generate_invoice_pdf(&save_plan, &pdf_request).map_err(SaveInvoicePdfError::save_failed)?;
+    let json_bytes =
+        serialize_editable_invoice(&updated_data).map_err(SaveInvoicePdfError::save_failed)?;
+
+    let invoice_root = invoice_root_from_json_path(&json_path)
+        .map_err(SaveInvoicePdfError::save_failed)?;
+    let backups =
+        create_timestamped_backups(&invoice_root, &pdf_path, &json_path).map_err(map_io_error)?;
+
+    let pdf_temp = temp_sibling_path(&pdf_path, "pdf.tmp");
+    let json_temp = temp_sibling_path(&json_path, "invoice.json.tmp");
+
+    if let Err(error) = write_bytes_to_path(&pdf_temp, &pdf_bytes) {
+        let _ = fs::remove_file(&pdf_temp);
+        let _ = fs::remove_file(&json_temp);
+        return Err(map_io_error(error));
+    }
+
+    if let Err(error) = write_bytes_to_path(&json_temp, &json_bytes) {
+        let _ = fs::remove_file(&pdf_temp);
+        let _ = fs::remove_file(&json_temp);
+        return Err(map_io_error(error));
+    }
+
+    if let Err(error) = replace_file(&pdf_temp, &pdf_path) {
+        let _ = fs::remove_file(&pdf_temp);
+        let _ = fs::remove_file(&json_temp);
+        return Err(map_io_error(error));
+    }
+
+    if let Err(error) = replace_file(&json_temp, &json_path) {
+        let _ = fs::remove_file(&json_temp);
+        let _ = fs::copy(&backups.0, &pdf_path);
+        return Err(map_io_error(error));
+    }
+
+    Ok(SaveInvoicePdfResult {
+        invoice_number: updated_data.invoice_number.clone(),
+        next_invoice_number: updated_data.invoice_number,
+        customer_name: updated_data.customer.name,
+        grand_total_rupees: totals.grand_total_rupees,
+        advance_rupees: totals.advance_rupees,
+        pending_rupees: totals.pending_rupees,
+        folder_path: existing.folder_path,
+        file_path: existing.pdf_path,
+    })
+}
+
+fn create_timestamped_backups(
+    invoice_root: &Path,
+    pdf_path: &Path,
+    json_path: &Path,
+) -> Result<(PathBuf, PathBuf), std::io::Error> {
+    use chrono::Local;
+
+    let backup_dir = backups_dir(invoice_root).map_err(|error| {
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, error)
+    })?;
+    fs::create_dir_all(&backup_dir)?;
+
+    let stamp = Local::now().format("%Y%m%d-%H%M%S");
+    let pdf_stem = pdf_path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("invoice");
+    let pdf_backup = backup_dir.join(format!("{pdf_stem}-{stamp}.pdf"));
+    let json_backup = backup_dir.join(format!("{pdf_stem}-{stamp}{EDITABLE_SUFFIX}"));
+
+    fs::copy(pdf_path, &pdf_backup)?;
+    fs::copy(json_path, &json_backup)?;
+    Ok((pdf_backup, json_backup))
+}
+
+fn temp_sibling_path(path: &Path, suffix: &str) -> PathBuf {
+    let file_name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("invoice");
+    path.with_file_name(format!("{file_name}.{suffix}"))
+}
+
+fn write_bytes_to_path(path: &Path, bytes: &[u8]) -> Result<(), std::io::Error> {
+    use std::io::Write;
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let mut file = fs::File::create(path)?;
+    file.write_all(bytes)?;
+    file.sync_all()?;
     Ok(())
 }
 
-fn resolve_logo_path(app: &AppHandle) -> Option<std::path::PathBuf> {
-    let bundled = app
-        .path()
-        .resolve(LOGO_FILE_NAME, tauri::path::BaseDirectory::Resource)
-        .ok()
-        .filter(|path| path.exists());
-
-    if bundled.is_some() {
-        return bundled;
+fn replace_file(temp_path: &Path, destination: &Path) -> Result<(), std::io::Error> {
+    if destination.exists() {
+        fs::remove_file(destination)?;
     }
+    fs::rename(temp_path, destination)
+}
 
-    let dev_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/assets/Logo.jpeg");
-    dev_path.exists().then_some(dev_path)
+fn map_io_error(error: std::io::Error) -> SaveInvoicePdfError {
+    if is_lock_error(&error) {
+        SaveInvoicePdfError::file_locked("Close the PDF and try saving again.")
+    } else {
+        SaveInvoicePdfError::save_failed(error.to_string())
+    }
+}
+
+fn is_lock_error(error: &std::io::Error) -> bool {
+    match error.raw_os_error() {
+        Some(32) | Some(33) => true,
+        _ => matches!(
+            error.kind(),
+            std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::WouldBlock
+        ),
+    }
+}
+
+#[allow(dead_code)]
+fn atomic_write_bytes(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let temp_path = temp_sibling_path(path, "pdf.tmp");
+    write_bytes_to_path(&temp_path, bytes).map_err(|error| error.to_string())?;
+    replace_file(&temp_path, path).map_err(|error| {
+        let _ = fs::remove_file(&temp_path);
+        error.to_string()
+    })?;
+    Ok(())
 }
 
 fn generate_invoice_pdf(
-    app: &AppHandle,
     save_plan: &InvoiceSavePlan,
     request: &SaveInvoicePdfRequest,
 ) -> Result<Vec<u8>, String> {
@@ -214,24 +541,21 @@ fn generate_invoice_pdf(
     // 1. Header: Logo (left) & INVOICE title (right)
     let mut cursor_y = 196.0;
 
-    if let Some(logo_path) = resolve_logo_path(app) {
-        if let Ok(logo_bytes) = fs::read(&logo_path) {
-            if let Ok(dynamic_image) = image::load_from_memory(&logo_bytes) {
-                let pdf_image = Image::from_dynamic_image(&dynamic_image);
-                pdf_image.add_to_layer(
-                    current_layer.clone(),
-                    ImageTransform {
-                        translate_x: Some(Mm(left)),
-                        translate_y: Some(Mm(cursor_y - 14.0)),
-                        scale_x: Some(0.35),
-                        scale_y: Some(0.35),
-                        dpi: Some(300.0),
-                        ..Default::default()
-                    },
-                );
-            }
-        }
-    }
+    let dynamic_image = image::load_from_memory(LOGO_BYTES).map_err(|error| {
+        format!("Failed to decode embedded invoice logo: {error}")
+    })?;
+    let pdf_image = Image::from_dynamic_image(&dynamic_image);
+    pdf_image.add_to_layer(
+        current_layer.clone(),
+        ImageTransform {
+            translate_x: Some(Mm(left)),
+            translate_y: Some(Mm(cursor_y - 14.0)),
+            scale_x: Some(0.35),
+            scale_y: Some(0.35),
+            dpi: Some(300.0),
+            ..Default::default()
+        },
+    );
 
     // "INVOICE" Title
     write_text_right(

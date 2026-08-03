@@ -24,11 +24,11 @@ export function AppFooter({ variant = "compact" }: AppFooterProps) {
           <div className="hidden flex-col items-end gap-1 text-xs text-brand-muted md:flex">
             <span className="inline-flex items-center gap-1.5">
               <PhoneIcon />
-              +92 51 1234567
+              03338122268
             </span>
             <span className="inline-flex items-center gap-1.5">
               <MapPinIcon />
-              Main Market, Sector G-9/4, Islamabad
+              Muslim Road Main Market, Gujranwala
             </span>
           </div>
 
